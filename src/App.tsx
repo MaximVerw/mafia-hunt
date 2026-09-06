@@ -323,46 +323,54 @@ export default function App() {
   }
 
   const mapCenter: [number, number] = currentTeam?.lat ? [currentTeam.lat, currentTeam.lng] : [51.0543, 3.7174];
+  const carPassengers = currentTeam ? users.filter(u => u.team_id === currentTeam.id) : [];
 
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
 
-      {/* Main View Top Bar - Single location to update own portrait */}
+      {/* Unified Main View Control Header (User profile, upload, and roster in one bar) */}
       {!isAdmin && currentUser && (
-        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 1000, background: 'rgba(0,0,0,0.85)', color: 'white', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <OvalAvatar src={currentUser.avatar_url} name={currentUser.name} width={32} height={42} border="1px solid #fff" />
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{currentUser.name}</span>
-            <span style={{ fontSize: '11px', color: '#ccc' }}>{currentTeam ? `Car: ${currentTeam.driver_name}` : 'Spectator'}</span>
+        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: 'calc(100vw - 20px)' }}>
+          <div style={{ background: 'rgba(0,0,0,0.85)', color: 'white', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <OvalAvatar src={currentUser.avatar_url} name={currentUser.name} width={32} height={42} border="1px solid #fff" />
+
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{currentUser.name}</span>
+              <span style={{ fontSize: '11px', color: '#ccc' }}>{currentTeam ? `Car: ${currentTeam.driver_name}` : 'Spectator'}</span>
+            </div>
+
+            {/* Portrait Upload Button - Launches front camera directly on mobile */}
+            <label style={{ fontSize: '11px', background: '#333', color: '#fff', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #666' }}>
+              📷 Take Portrait
+              <input
+                type="file"
+                accept="image/*"
+                capture="user"
+                style={{ display: 'none' }}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleAvatarUpload(currentUser.id, e.target.files[0]);
+                  }
+                }}
+              />
+            </label>
+
+            {/* Integrated Car Roster Button */}
+            {currentTeam && (
+              <button
+                onClick={() => setShowRoster(!showRoster)}
+                style={{ fontSize: '11px', padding: '6px 10px', background: showRoster ? '#444' : '#222', color: 'white', border: '1px solid #666', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                🚘 Car Roster ({carPassengers.length})
+              </button>
+            )}
           </div>
 
-          {/* Dedicated Photo Upload for Current User */}
-          <label style={{ fontSize: '11px', background: '#333', color: '#fff', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #666', marginLeft: '4px' }}>
-            📷 Portrait
-            <input
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                if (e.target.files && e.target.files[0]) {
-                  handleAvatarUpload(currentUser.id, e.target.files[0]);
-                }
-              }}
-            />
-          </label>
-        </div>
-      )}
-
-      {/* Player Car Roster */}
-      {!isAdmin && currentTeam && (
-        <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000 }}>
-          <button onClick={() => setShowRoster(!showRoster)} style={{ padding: '10px', background: 'black', color: 'white', border: 'none', borderRadius: '4px' }}>
-            🚘 Who is in my car?
-          </button>
-          {showRoster && (
-            <div style={{ background: 'white', padding: '12px', marginTop: '5px', border: '2px solid black', borderRadius: '4px', minWidth: '220px' }}>
+          {/* Inline Car Roster Dropdown Panel */}
+          {!isAdmin && currentTeam && showRoster && (
+            <div style={{ background: 'white', padding: '12px', border: '2px solid black', borderRadius: '8px', minWidth: '240px', boxShadow: '0px 4px 10px rgba(0,0,0,0.3)' }}>
               <h4 style={{ margin: '0 0 10px 0' }}>{currentTeam?.driver_name}'s Car</h4>
-              {users.filter(u => u.team_id === currentTeam?.id).map(u => (
+              {carPassengers.map(u => (
                 <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <OvalAvatar src={u.avatar_url} name={u.name} width={30} height={40} />
@@ -383,12 +391,12 @@ export default function App() {
       {/* Admin Panel */}
       {isAdmin && (
         <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <button onClick={() => setShowAdminRoster(!showAdminRoster)} style={{ padding: '10px', background: 'purple', color: 'white', marginBottom: '10px', cursor: 'pointer', border: 'none', fontWeight: 'bold' }}>
+          <button onClick={() => setShowAdminRoster(!showAdminRoster)} style={{ padding: '10px', background: 'purple', color: 'white', marginBottom: '10px', cursor: 'pointer', border: 'none', fontWeight: 'bold', borderRadius: '4px' }}>
             👑 Manage Teams
           </button>
 
           {users.some(u => u.is_reported) && (
-            <div style={{ background: 'red', color: 'white', padding: '10px', marginBottom: '10px', border: '2px solid darkred' }}>
+            <div style={{ background: 'red', color: 'white', padding: '10px', marginBottom: '10px', border: '2px solid darkred', borderRadius: '4px' }}>
               <h4 style={{ margin: '0 0 10px 0' }}>🚨 Discrepancies Reported!</h4>
               {users.filter(u => u.is_reported).map(u => (
                 <div key={u.id} style={{ display: 'flex', gap: '8px', marginBottom: '5px', alignItems: 'center' }}>
@@ -405,7 +413,7 @@ export default function App() {
           )}
 
           {showAdminRoster && (
-            <div style={{ background: 'white', padding: '15px', border: '2px solid black', maxHeight: '70vh', overflowY: 'auto', boxShadow: '0px 4px 6px rgba(0,0,0,0.3)' }}>
+            <div style={{ background: 'white', padding: '15px', border: '2px solid black', borderRadius: '8px', maxHeight: '70vh', overflowY: 'auto', boxShadow: '0px 4px 6px rgba(0,0,0,0.3)' }}>
               <h4 style={{ margin: '0 0 15px 0' }}>All Players</h4>
               {users.map(u => (
                 <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', gap: '15px', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '5px' }}>
