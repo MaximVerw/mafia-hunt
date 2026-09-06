@@ -4,7 +4,6 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { supabase } from './supabase';
 
-// Standard Blue Pin for uncaptured hostages
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 const DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
@@ -40,29 +39,24 @@ const getOrCreateDeviceId = () => {
 const myDeviceId = getOrCreateDeviceId();
 
 export default function App() {
-  // Database States
   const [missions, setMissions] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
 
-  // Auth States
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentTeam, setCurrentTeam] = useState<any>(null);
 
-  // Player UI States
   const [showRoster, setShowRoster] = useState(false);
   const [captureMission, setCaptureMission] = useState<any>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [isPlayerUploading, setIsPlayerUploading] = useState(false);
 
-  // Admin UI States
   const [showAdminRoster, setShowAdminRoster] = useState(false);
   const [newHostageLoc, setNewHostageLoc] = useState<{lat: number, lng: number} | null>(null);
-  const [hostageName, setHostageName] = useState('');
+  const [selectedHostageUserId, setSelectedHostageUserId] = useState('');
   const [hostageFile, setHostageFile] = useState<File | null>(null);
   const [isAdminUploading, setIsAdminUploading] = useState(false);
 
-  // --- 1. DATA FETCHING & REALTIME ---
   const fetchAllData = async () => {
     const [mRes, tRes, uRes] = await Promise.all([
       supabase.from('missions').select('*'),
@@ -77,17 +71,13 @@ export default function App() {
     if (savedUserId && uRes.data) {
       const user = uRes.data.find(u => u.id === savedUserId);
       if (user) {
-        // --- UPDATED: THE EVICTION LOGIC ---
-        // If the database device_id no longer matches myDeviceId, kick the user out.
-        // This triggers the instant the Admin clicks "Unlock" (which sets DB device_id to null)
         if (user.device_id !== myDeviceId) {
           alert(`Your session was unlocked by the Admin. You have been disconnected!`);
-          localStorage.removeItem('userId'); // Wipe memory
-          setCurrentUser(null);              // Kick to login screen
+          localStorage.removeItem('userId');
+          setCurrentUser(null);
           setCurrentTeam(null);
-          return; // Stop processing this user
+          return;
         }
-        // -----------------------------------
 
         setCurrentUser(user);
         if (user.team_id) {
@@ -110,7 +100,6 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // --- 2. THE DRIVING ENGINE (Live GPS) ---
   useEffect(() => {
     if (isAdmin || !currentTeam) return;
 
@@ -126,7 +115,6 @@ export default function App() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [currentTeam]);
 
-  // --- 3. PLAYER FUNCTIONS ---
   const handleJoinTeam = async (userId: string, teamId: string) => {
     await supabase.from('users').update({ team_id: teamId, device_id: myDeviceId, is_reported: false }).eq('id', userId);
     localStorage.setItem('userId', userId);
@@ -169,9 +157,13 @@ export default function App() {
     fetchAllData();
   };
 
-  // --- 4. ADMIN FUNCTIONS ---
   const adminAssignUser = async (userId: string, teamId: string | null) => {
     await supabase.from('users').update({ team_id: teamId, is_reported: false }).eq('id', userId);
+    fetchAllData();
+  };
+
+  const adminDismissReport = async (userId: string) => {
+    await supabase.from('users').update({ is_reported: false }).eq('id', userId);
     fetchAllData();
   };
 
@@ -185,7 +177,7 @@ export default function App() {
   }
 
   const handleCreateHostage = async () => {
-    if (!newHostageLoc || !hostageName) return;
+    if (!newHostageLoc || !selectedHostageUserId) return;
     setIsAdminUploading(true);
     let imageUrl = null;
     if (hostageFile) {
@@ -193,19 +185,31 @@ export default function App() {
       const { error } = await supabase.storage.from('hostages').upload(fileName, hostageFile);
       if (!error) imageUrl = supabase.storage.from('hostages').getPublicUrl(fileName).data.publicUrl;
     }
+
+    const hostageUser = users.find(u => u.id === selectedHostageUserId);
+
     await supabase.from('missions').insert([{
-      title: hostageName, lat: newHostageLoc.lat, lng: newHostageLoc.lng, status: 'available', image_url: imageUrl
+      title: hostageUser?.name || 'Hostage',
+      user_id: selectedHostageUserId,
+      lat: newHostageLoc.lat,
+      lng: newHostageLoc.lng,
+      status: 'available',
+      image_url: imageUrl
     }]);
-    setNewHostageLoc(null); setHostageName(''); setHostageFile(null); setIsAdminUploading(false);
+
+    setNewHostageLoc(null); setSelectedHostageUserId(''); setHostageFile(null); setIsAdminUploading(false);
   };
 
-  const markAsCaptured = async (id: string) => {
-    await supabase.from('missions').update({ status: 'captured' }).eq('id', id);
-    fetchAllData();
-  };
+  const handleApproveCapture = async (missionId: string) => {
+    const mission = missions.find(m => m.id === missionId);
+    if (!mission) return;
 
-  const handleApproveCapture = async (id: string) => {
-    await supabase.from('missions').update({ status: 'captured' }).eq('id', id);
+    await supabase.from('missions').update({ status: 'captured' }).eq('id', missionId);
+
+    if (mission.user_id && mission.team_id) {
+      await supabase.from('users').update({ team_id: mission.team_id }).eq('id', mission.user_id);
+    }
+
     fetchAllData();
   };
 
@@ -221,8 +225,7 @@ export default function App() {
     fetchAllData();
   };
 
-  // --- 5. RENDER LOGIN SCREEN ---
-  if (!isAdmin && (!currentUser || !currentTeam)) {
+  if (!isAdmin && !currentUser) {
     return (
       <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '600px', margin: '0 auto' }}>
         <h2>Who are you?</h2>
@@ -233,12 +236,13 @@ export default function App() {
 
             return (
               <div key={u.id} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isClaimedBySomeoneElse ? '#ffe6e6' : '#f9f9f9', opacity: isClaimedBySomeoneElse ? 0.7 : 1 }}>
-
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <strong style={{ fontSize: '18px', textDecoration: isClaimedBySomeoneElse ? 'line-through' : 'none' }}>{u.name}</strong>
+                  <span style={{ fontSize: '12px', color: '#666' }}>
+                    {assignedTeam ? `Team: ${assignedTeam.driver_name}` : 'Unassigned (Hostage)'}
+                  </span>
                 </div>
 
-                {/* UPDATED: Users are locked out of claimed accounts. No 'Takeover' button. */}
                 {isClaimedBySomeoneElse ? (
                   <span style={{ fontSize: '14px', color: '#cc0000', fontWeight: 'bold' }}>🔒 Locked (Ask Boss)</span>
                 ) : u.team_id && assignedTeam ? (
@@ -249,14 +253,22 @@ export default function App() {
                     Enter Game (🚘 {assignedTeam.driver_name})
                   </button>
                 ) : (
-                  <select
-                    onChange={(e) => handleJoinTeam(u.id, e.target.value)}
-                    defaultValue=""
-                    style={{ padding: '10px', borderRadius: '4px', border: '1px solid #aaa' }}
-                  >
-                    <option value="" disabled>Select Driver to Join...</option>
-                    {teams.map(t => <option key={t.id} value={t.id}>{t.driver_name}</option>)}
-                  </select>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <button
+                      onClick={() => handleLogin(u.id)}
+                      style={{ padding: '10px 12px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                    >
+                      Connect as Hostage
+                    </button>
+                    <select
+                      onChange={(e) => handleJoinTeam(u.id, e.target.value)}
+                      defaultValue=""
+                      style={{ padding: '10px', borderRadius: '4px', border: '1px solid #aaa' }}
+                    >
+                      <option value="" disabled>Join Car...</option>
+                      {teams.map(t => <option key={t.id} value={t.id}>{t.driver_name}</option>)}
+                    </select>
+                  </div>
                 )}
               </div>
             );
@@ -266,14 +278,20 @@ export default function App() {
     );
   }
 
-  // --- 6. RENDER THE MAP ---
   const mapCenter: [number, number] = currentTeam?.lat ? [currentTeam.lat, currentTeam.lng] : [51.0543, 3.7174];
 
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
 
-      {/* Player Top Bar (Roster) */}
-      {!isAdmin && (
+      {/* Hostage Bar (Read-only indication, no logout option) */}
+      {!isAdmin && !currentTeam && (
+        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 1000, background: 'rgba(0,0,0,0.8)', color: 'white', padding: '10px 15px', borderRadius: '8px' }}>
+          <span>👁️ Logged in as <strong>{currentUser?.name}</strong> (Hostage - Map View Only)</span>
+        </div>
+      )}
+
+      {/* Player Car Roster (No switch user option) */}
+      {!isAdmin && currentTeam && (
         <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000 }}>
           <button onClick={() => setShowRoster(!showRoster)} style={{ padding: '10px', background: 'black', color: 'white', border: 'none', borderRadius: '4px' }}>
             🚘 Who is in my car?
@@ -296,20 +314,26 @@ export default function App() {
         </div>
       )}
 
-      {/* Admin Top Bar (Roster) */}
+      {/* Admin Panel */}
       {isAdmin && (
         <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
           <button onClick={() => setShowAdminRoster(!showAdminRoster)} style={{ padding: '10px', background: 'purple', color: 'white', marginBottom: '10px', cursor: 'pointer', border: 'none', fontWeight: 'bold' }}>
             👑 Manage Teams
           </button>
 
+          {/* Admin Reported Liars Alert with Ignore Option */}
           {users.some(u => u.is_reported) && (
             <div style={{ background: 'red', color: 'white', padding: '10px', marginBottom: '10px', border: '2px solid darkred' }}>
               <h4 style={{ margin: '0 0 10px 0' }}>🚨 Liars Detected!</h4>
               {users.filter(u => u.is_reported).map(u => (
-                <div key={u.id} style={{ display: 'flex', gap: '10px', marginBottom: '5px', alignItems: 'center' }}>
-                  {u.name}
-                  <button onClick={() => adminAssignUser(u.id, null)} style={{ cursor: 'pointer' }}>Kick to Unassigned</button>
+                <div key={u.id} style={{ display: 'flex', gap: '8px', marginBottom: '5px', alignItems: 'center' }}>
+                  <span>{u.name}</span>
+                  <button onClick={() => adminAssignUser(u.id, null)} style={{ cursor: 'pointer', padding: '4px 8px', background: 'black', color: 'white', border: 'none', borderRadius: '3px' }}>
+                    Kick
+                  </button>
+                  <button onClick={() => adminDismissReport(u.id)} style={{ cursor: 'pointer', padding: '4px 8px', background: 'white', color: 'black', border: 'none', borderRadius: '3px', fontWeight: 'bold' }}>
+                    Ignore
+                  </button>
                 </div>
               ))}
             </div>
@@ -342,15 +366,20 @@ export default function App() {
       {/* Admin Add Hostage Overlay */}
       {newHostageLoc && (
         <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', background: 'white', padding: '20px', borderRadius: '8px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <h3>Drop New Hostage</h3>
-          <input type="text" placeholder="Name" value={hostageName} onChange={(e) => setHostageName(e.target.value)} />
+          <h3>Drop Hostage User</h3>
+          <select value={selectedHostageUserId} onChange={(e) => setSelectedHostageUserId(e.target.value)} style={{ padding: '8px' }}>
+            <option value="">Select User Account...</option>
+            {users.map(u => (
+              <option key={u.id} value={u.id}>{u.name} {u.team_id ? '(Assigned)' : '(Unassigned)'}</option>
+            ))}
+          </select>
           <input type="file" accept="image/*" onChange={(e) => setHostageFile(e.target.files ? e.target.files[0] : null)} />
-          <button onClick={handleCreateHostage}>{isAdminUploading ? 'Saving...' : 'Save'}</button>
+          <button onClick={handleCreateHostage} disabled={!selectedHostageUserId}>{isAdminUploading ? 'Saving...' : 'Save Hostage'}</button>
           <button onClick={() => setNewHostageLoc(null)}>Cancel</button>
         </div>
       )}
 
-      {/* Player Capture Camera Overlay */}
+      {/* Player Capture Overlay */}
       {captureMission && (
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <h2 style={{ color: 'white', textAlign: 'center' }}>Secure: {captureMission.title}</h2>
@@ -364,30 +393,23 @@ export default function App() {
         </div>
       )}
 
+      {/* Map Component */}
       <MapContainer center={mapCenter} zoom={14} style={{ height: '100%', width: '100%', zIndex: 1 }}>
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <AdminMapEvents />
 
-       {/* Render the Cars */}
-               {teams.filter(t => t.lat && t.lng).map(team => {
-                 const isMyTeam = currentTeam?.id === team.id;
+        {teams.filter(t => t.lat && t.lng).map(team => {
+          const isMyTeam = currentTeam?.id === team.id;
+          return (
+            <Marker key={team.id} position={[team.lat, team.lng]} icon={createCarIcon(team.color)} zIndexOffset={isMyTeam ? 1000 : 0}>
+              <Popup>
+                <strong>{team.driver_name}'s Car {isMyTeam && '(Your Team)'}</strong><br/>
+                Passengers: {users.filter(u => u.team_id === team.id).map(u => u.name).join(', ')}
+              </Popup>
+            </Marker>
+          );
+        })}
 
-                 return (
-                   <Marker
-                     key={team.id}
-                     position={[team.lat, team.lng]}
-                     icon={createCarIcon(team.color || '#000')}
-                     zIndexOffset={isMyTeam ? 1000 : 0} // Draw your car above all other markers
-                   >
-                     <Popup>
-                       <strong>{team.driver_name}'s Car {isMyTeam && '(Your Team)'}</strong><br/>
-                       Passengers: {users.filter(u => u.team_id === team.id).map(u => u.name).join(', ')}
-                     </Popup>
-                   </Marker>
-                 );
-               })}
-
-        {/* Render Missions (Pins & Dots) */}
         {missions.map((mission) => {
           const reactKey = `${mission.id}-${mission.status}`;
           if (mission.status === 'available') {
@@ -395,14 +417,16 @@ export default function App() {
               <Marker key={reactKey} position={[mission.lat, mission.lng]}>
                 <Popup>
                   {mission.image_url && <img src={mission.image_url} alt="Hostage" style={{ width: '100%', borderRadius: '4px', marginBottom: '8px' }} />}
-                  <strong style={{ fontSize: '16px' }}>{mission.title}</strong><br/>
+                  <strong style={{ fontSize: '16px' }}>Hostage: {mission.title}</strong><br/>
                   {isAdmin ? (
                     <>
-                      <button onClick={() => markAsCaptured(mission.id)} style={{ width: '100%', marginTop: '10px', background: 'orange', color: 'white', border: 'none', padding: '8px', cursor: 'pointer' }}>Admin: Quick Capture</button>
+                      <button onClick={() => handleApproveCapture(mission.id)} style={{ width: '100%', marginTop: '10px', background: 'orange', color: 'white', border: 'none', padding: '8px', cursor: 'pointer' }}>Admin: Quick Capture</button>
                       <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '5px', background: 'red', color: 'white', border: 'none', padding: '8px', cursor: 'pointer' }}>Admin: Delete</button>
                     </>
-                  ) : (
+                  ) : currentTeam ? (
                     <button onClick={() => setCaptureMission(mission)} style={{ width: '100%', marginTop: '10px', background: 'black', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Secure Hostage</button>
+                  ) : (
+                    <span style={{ fontSize: '12px', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '5px' }}>Uncaptured hostage pin</span>
                   )}
                 </Popup>
               </Marker>
@@ -427,36 +451,27 @@ export default function App() {
               </CircleMarker>
             );
           } else {
-                      // 1. Find the team that captured this mission
-                      const capturingTeam = teams.find(t => t.id === mission.team_id);
-                      // 2. Grab their color, or fall back to the default green if they don't have one
-                      const teamColor = capturingTeam?.color || '#28a745';
+            const capturingTeam = teams.find(t => t.id === mission.team_id);
+            const teamColor = capturingTeam?.color || '#28a745';
 
-                      return (
-                        <CircleMarker
-                          key={reactKey}
-                          center={[mission.lat, mission.lng]}
-                          radius={12}
-                          color={teamColor}        // Outline color
-                          fillColor={teamColor}    // Inside color
-                          fillOpacity={0.8}
-                        >
-                          <Popup>
-                            <div style={{ textAlign: 'center' }}>
-                              <strong style={{ color: teamColor }}>Secured: {mission.title}</strong>
-                              {mission.proof_url ? (
-                                <img src={mission.proof_url} alt="Proof" style={{ width: '200px', borderRadius: '8px', marginTop: '10px', display: 'block' }} />
-                              ) : (
-                                <p style={{ marginTop: '10px' }}>No photo provided.</p>
-                              )}
-                              {isAdmin && (
-                                <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '10px', background: 'red', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Delete Dot</button>
-                              )}
-                            </div>
-                          </Popup>
-                        </CircleMarker>
-                      );
-                    }
+            return (
+              <CircleMarker key={reactKey} center={[mission.lat, mission.lng]} radius={12} color={teamColor} fillColor={teamColor} fillOpacity={0.8}>
+                <Popup>
+                  <div style={{ textAlign: 'center' }}>
+                    <strong style={{ color: teamColor }}>Secured: {mission.title}</strong>
+                    {mission.proof_url ? (
+                      <img src={mission.proof_url} alt="Proof" style={{ width: '200px', borderRadius: '8px', marginTop: '10px', display: 'block' }} />
+                    ) : (
+                      <p style={{ marginTop: '10px' }}>No photo provided.</p>
+                    )}
+                    {isAdmin && (
+                      <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '10px', background: 'red', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Delete Dot</button>
+                    )}
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          }
         })}
       </MapContainer>
     </div>
