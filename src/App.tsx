@@ -67,16 +67,17 @@ export default function App() {
     if (savedUserId && uRes.data) {
       const user = uRes.data.find(u => u.id === savedUserId);
       if (user) {
-        // --- NEW: THE EVICTION LOGIC ---
-        // If the database says this user is now claimed by a DIFFERENT device...
-        if (user.device_id && user.device_id !== myDeviceId) {
-          alert(`Someone else just logged in as ${user.name}. You have been disconnected!`);
+        // --- UPDATED: THE EVICTION LOGIC ---
+        // If the database device_id no longer matches myDeviceId, kick the user out.
+        // This triggers the instant the Admin clicks "Unlock" (which sets DB device_id to null)
+        if (user.device_id !== myDeviceId) {
+          alert(`Your session was unlocked by the Admin. You have been disconnected!`);
           localStorage.removeItem('userId'); // Wipe memory
           setCurrentUser(null);              // Kick to login screen
           setCurrentTeam(null);
           return; // Stop processing this user
         }
-        // -------------------------------
+        // -----------------------------------
 
         setCurrentUser(user);
         if (user.team_id) {
@@ -221,28 +222,29 @@ export default function App() {
             const isClaimedBySomeoneElse = u.device_id && u.device_id !== myDeviceId;
 
             return (
-              // NEW: We allow click-throughs now, but highlight "Taken" users in a slight red background
-              <div key={u.id} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isClaimedBySomeoneElse ? '#ffe6e6' : '#f9f9f9' }}>
+              <div key={u.id} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isClaimedBySomeoneElse ? '#ffe6e6' : '#f9f9f9', opacity: isClaimedBySomeoneElse ? 0.7 : 1 }}>
 
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <strong style={{ fontSize: '18px' }}>{u.name}</strong>
-                  {isClaimedBySomeoneElse && <span style={{ fontSize: '12px', color: '#cc0000', fontWeight: 'bold' }}>Active on another device</span>}
+                  <strong style={{ fontSize: '18px', textDecoration: isClaimedBySomeoneElse ? 'line-through' : 'none' }}>{u.name}</strong>
                 </div>
 
-                {u.team_id && assignedTeam ? (
+                {/* UPDATED: Users are locked out of claimed accounts. No 'Takeover' button. */}
+                {isClaimedBySomeoneElse ? (
+                  <span style={{ fontSize: '14px', color: '#cc0000', fontWeight: 'bold' }}>🔒 Locked (Ask Boss)</span>
+                ) : u.team_id && assignedTeam ? (
                   <button
                     onClick={() => handleLogin(u.id)}
-                    style={{ padding: '10px 15px', background: isClaimedBySomeoneElse ? '#cc0000' : 'black', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                    style={{ padding: '10px 15px', background: 'black', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                   >
-                    {isClaimedBySomeoneElse ? 'Force Takeover' : 'Enter Game (🚘 ${assignedTeam.driver_name})'}
+                    Enter Game (🚘 {assignedTeam.driver_name})
                   </button>
                 ) : (
                   <select
-                   onChange={(e) => handleJoinTeam(u.id, e.target.value)}
+                    onChange={(e) => handleJoinTeam(u.id, e.target.value)}
                     defaultValue=""
-                    style={{ padding: '10px', borderRadius: '4px', border: isClaimedBySomeoneElse ? '2px solid #cc0000' : '1px solid #aaa' }}
+                    style={{ padding: '10px', borderRadius: '4px', border: '1px solid #aaa' }}
                   >
-                    <option value="" disabled>{isClaimedBySomeoneElse ? 'Take Over & Select Driver...' : 'Select Driver to Join...'}</option>
+                    <option value="" disabled>Select Driver to Join...</option>
                     {teams.map(t => <option key={t.id} value={t.id}>{t.driver_name}</option>)}
                   </select>
                 )}
