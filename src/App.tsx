@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, CircleMarker } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { supabase } from './supabase';
@@ -56,6 +56,99 @@ const createCarIcon = (color?: string) => L.divIcon({
   className: '',
   iconSize: [36, 36],
   iconAnchor: [18, 18],
+});
+
+// Portrait icon for hostages/targets on the map
+const createPortraitIcon = (avatarUrl?: string | null, borderColor: string = '#dc3545') => L.divIcon({
+  html: `
+    <div style="
+      width: 44px;
+      height: 58px;
+      border-radius: 50%;
+      border: 3px solid ${borderColor};
+      background: #e0e0e0;
+      overflow: hidden;
+      box-shadow: 0px 3px 8px rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    ">
+      ${avatarUrl && avatarUrl.trim() !== ''
+        ? `<img
+            src="${avatarUrl}"
+            alt="Target"
+            referrerpolicy="no-referrer"
+            style="width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; object-fit: cover; display: block;"
+            onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
+          />
+          <span style="display:none; font-size:24px; user-select:none;">👤</span>`
+        : `<span style="font-size:24px; user-select:none;">👤</span>`
+      }
+    </div>
+  `,
+  className: '',
+  iconSize: [44, 58],
+  iconAnchor: [22, 29],
+});
+
+// Captured hostage icon: Portrait badge with team-colored checkmark badge on bottom-right
+const createCapturedCheckIcon = (avatarUrl?: string | null, teamColor: string = '#28a745') => L.divIcon({
+  html: `
+    <div style="position: relative; width: 44px; height: 58px;">
+      <!-- Portrait Frame -->
+      <div style="
+        width: 44px;
+        height: 58px;
+        border-radius: 50%;
+        border: 3px solid ${teamColor};
+        background: #e0e0e0;
+        overflow: hidden;
+        box-shadow: 0px 3px 8px rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      ">
+        ${avatarUrl && avatarUrl.trim() !== ''
+          ? `<img
+              src="${avatarUrl}"
+              alt="Target"
+              referrerpolicy="no-referrer"
+              style="width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; object-fit: cover; display: block;"
+              onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
+            />
+            <span style="display:none; font-size:24px; user-select:none;">👤</span>`
+          : `<span style="font-size:24px; user-select:none;">👤</span>`
+        }
+      </div>
+
+      <!-- Bottom-Right Team Checkmark Badge -->
+      <div style="
+        position: absolute;
+        bottom: -2px;
+        right: -4px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: ${teamColor};
+        border: 2px solid #ffffff;
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        z-index: 10;
+      ">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+    </div>
+  `,
+  className: '',
+  iconSize: [44, 58],
+  iconAnchor: [22, 29],
 });
 
 const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
@@ -146,7 +239,6 @@ export default function App() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [currentTeam]);
 
-  // Upload method for current user's portrait
   const handleAvatarUpload = async (userId: string, file: File) => {
     const fileName = `avatar_${userId}_${Math.random()}.${file.name.split('.').pop()}`;
     const { error } = await supabase.storage.from('hostages').upload(fileName, file);
@@ -328,7 +420,7 @@ export default function App() {
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
 
-      {/* Unified Main View Control Header (User profile, upload, and roster in one bar) */}
+      {/* Unified Control Header */}
       {!isAdmin && currentUser && (
         <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: 'calc(100vw - 20px)' }}>
           <div style={{ background: 'rgba(0,0,0,0.85)', color: 'white', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -339,7 +431,7 @@ export default function App() {
               <span style={{ fontSize: '11px', color: '#ccc' }}>{currentTeam ? `Car: ${currentTeam.driver_name}` : 'Spectator'}</span>
             </div>
 
-            {/* Portrait Upload Button - Launches front camera directly on mobile */}
+            {/* Take Selfie/Portrait directly via Camera */}
             <label style={{ fontSize: '11px', background: '#333', color: '#fff', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #666' }}>
               📷 Take Portrait
               <input
@@ -498,7 +590,6 @@ export default function App() {
 
                   <div style={{ marginTop: '10px', fontSize: '12px', fontWeight: 'bold', color: '#555' }}>Passengers ({passengers.length})</div>
 
-                  {/* Oval Portrait Row */}
                   <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '8px' }}>
                     {passengers.length > 0 ? (
                       passengers.map(p => (
@@ -517,7 +608,7 @@ export default function App() {
           );
         })}
 
-        {/* Target Pins */}
+        {/* Target Pins (Hostages) */}
         {missions.map((mission) => {
           const reactKey = `${mission.id}-${mission.status}`;
           const targetUser = users.find(u => u.id === mission.user_id);
@@ -525,7 +616,11 @@ export default function App() {
 
           if (mission.status === 'available') {
             return (
-              <Marker key={reactKey} position={[mission.lat, mission.lng]}>
+              <Marker
+                key={reactKey}
+                position={[mission.lat, mission.lng]}
+                icon={createPortraitIcon(portraitUrl, '#dc3545')}
+              >
                 <Popup>
                   <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <OvalAvatar src={portraitUrl} name={mission.title} width={60} height={80} border="3px solid #dc3545" />
@@ -533,11 +628,11 @@ export default function App() {
 
                     {isAdmin ? (
                       <>
-                        <button onClick={() => handleApproveCapture(mission.id)} style={{ width: '100%', marginTop: '10px', background: 'orange', color: 'white', border: 'none', padding: '8px', cursor: 'pointer' }}>Admin: Quick Capture</button>
-                        <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '5px', background: 'red', color: 'white', border: 'none', padding: '8px', cursor: 'pointer' }}>Admin: Delete Pin</button>
+                        <button onClick={() => handleApproveCapture(mission.id)} style={{ width: '100%', marginTop: '10px', background: 'orange', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Admin: Quick Capture</button>
+                        <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '5px', background: 'red', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Admin: Delete Pin</button>
                       </>
                     ) : currentTeam ? (
-                      <button onClick={() => setCaptureMission(mission)} style={{ width: '100%', marginTop: '10px', background: 'black', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Capture Target</button>
+                      <button onClick={() => setCaptureMission(mission)} style={{ width: '100%', marginTop: '10px', background: 'black', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px' }}>Capture Target</button>
                     ) : (
                       <span style={{ fontSize: '12px', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '5px' }}>Unclaimed target</span>
                     )}
@@ -547,10 +642,14 @@ export default function App() {
             );
           } else if (mission.status === 'pending') {
             return (
-              <CircleMarker key={reactKey} center={[mission.lat, mission.lng]} radius={14} color="#d39e00" fillColor="#ffc107" fillOpacity={0.8}>
+              <Marker
+                key={reactKey}
+                position={[mission.lat, mission.lng]}
+                icon={createPortraitIcon(portraitUrl, '#ffc107')}
+              >
                 <Popup>
                   <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <strong style={{ color: '#d39e00' }}>Reviewing: {mission.title}</strong>
+                    <strong style={{ color: '#d39e00' }}>Reviewing Capture: {mission.title}</strong>
                     <div style={{ margin: '8px 0' }}>
                       <OvalAvatar src={portraitUrl} name={mission.title} width={50} height={66} border="2px solid #d39e00" />
                     </div>
@@ -565,31 +664,42 @@ export default function App() {
                     )}
                   </div>
                 </Popup>
-              </CircleMarker>
+              </Marker>
             );
           } else {
             const capturingTeam = teams.find(t => t.id === mission.team_id);
             const teamColor = capturingTeam?.color || '#28a745';
 
             return (
-              <CircleMarker key={reactKey} center={[mission.lat, mission.lng]} radius={14} color={teamColor} fillColor={teamColor} fillOpacity={0.8}>
+              <Marker
+                key={reactKey}
+                position={[mission.lat, mission.lng]}
+                icon={createCapturedCheckIcon(portraitUrl, teamColor)}
+              >
                 <Popup>
                   <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <strong style={{ color: teamColor }}>Captured: {mission.title}</strong>
-                    <div style={{ margin: '8px 0' }}>
-                      <OvalAvatar src={portraitUrl} name={mission.title} width={50} height={66} border={`2px solid ${teamColor}`} />
+                    <span style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>Captured by {capturingTeam ? `${capturingTeam.driver_name}'s Car` : 'Team'}</span>
+
+                    <div style={{ margin: '4px 0 8px 0' }}>
+                      <OvalAvatar src={portraitUrl} name={mission.title} width={45} height={60} border={`2px solid ${teamColor}`} />
                     </div>
+
                     {mission.proof_url ? (
-                      <img src={mission.proof_url} alt="Proof" style={{ width: '200px', borderRadius: '8px', display: 'block' }} />
+                      <div style={{ marginTop: '6px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Proof Photo:</div>
+                        <img src={mission.proof_url} alt="Proof" style={{ width: '200px', borderRadius: '8px', display: 'block', border: '1px solid #ccc' }} />
+                      </div>
                     ) : (
-                      <p style={{ marginTop: '10px' }}>No proof photo provided.</p>
+                      <p style={{ marginTop: '10px', fontStyle: 'italic', fontSize: '12px', color: '#888' }}>No proof photo provided.</p>
                     )}
+
                     {isAdmin && (
-                      <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '10px', background: 'red', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Delete Dot</button>
+                      <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '10px', background: 'red', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Delete Pin</button>
                     )}
                   </div>
                 </Popup>
-              </CircleMarker>
+              </Marker>
             );
           }
         })}
