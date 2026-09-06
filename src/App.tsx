@@ -10,11 +10,21 @@ import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 const DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Custom icon for the Teams/Cars
-const CarIcon = L.divIcon({
-  html: '<div style="font-size: 30px; line-height: 30px; margin-top: -15px; margin-left: -15px;">🚘</div>',
+const createCarIcon = (color) => L.divIcon({
+  html: `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.6)); display: block;">
+      <path
+        fill="${color || '#000000'}"
+        stroke="#ffffff"
+        stroke-width="1.2"
+        stroke-linejoin="round"
+        d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.04 3H5.81l1.04-3zM19 17c-.83 0-1.5-.67-1.5-1.5S18.17 14 19 14s1.5.67 1.5 1.5S19.83 17 19 17zm-14 0c-.83 0-1.5-.67-1.5-1.5S4.17 14 5 14s1.5.67 1.5 1.5S5.83 17 5 17z"
+      />
+    </svg>
+  `,
   className: '',
-  iconSize: [30, 30],
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
 });
 
 const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
@@ -358,15 +368,24 @@ export default function App() {
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <AdminMapEvents />
 
-        {/* Render the Cars */}
-        {teams.filter(t => t.lat && t.lng).map(team => (
-          <Marker key={team.id} position={[team.lat, team.lng]} icon={CarIcon}>
-            <Popup>
-              <strong>{team.driver_name}'s Car</strong><br/>
-              Passengers: {users.filter(u => u.team_id === team.id).map(u => u.name).join(', ')}
-            </Popup>
-          </Marker>
-        ))}
+       {/* Render the Cars */}
+               {teams.filter(t => t.lat && t.lng).map(team => {
+                 const isMyTeam = currentTeam?.id === team.id;
+
+                 return (
+                   <Marker
+                     key={team.id}
+                     position={[team.lat, team.lng]}
+                     icon={createCarIcon(team.color || '#000')}
+                     zIndexOffset={isMyTeam ? 1000 : 0} // Draw your car above all other markers
+                   >
+                     <Popup>
+                       <strong>{team.driver_name}'s Car {isMyTeam && '(Your Team)'}</strong><br/>
+                       Passengers: {users.filter(u => u.team_id === team.id).map(u => u.name).join(', ')}
+                     </Popup>
+                   </Marker>
+                 );
+               })}
 
         {/* Render Missions (Pins & Dots) */}
         {missions.map((mission) => {
@@ -408,24 +427,36 @@ export default function App() {
               </CircleMarker>
             );
           } else {
-            return (
-              <CircleMarker key={reactKey} center={[mission.lat, mission.lng]} radius={12} color="#198754" fillColor="#28a745" fillOpacity={0.8}>
-                <Popup>
-                  <div style={{ textAlign: 'center' }}>
-                    <strong style={{ color: '#28a745' }}>Secured: {mission.title}</strong>
-                    {mission.proof_url ? (
-                      <img src={mission.proof_url} alt="Proof" style={{ width: '200px', borderRadius: '8px', marginTop: '10px', display: 'block' }} />
-                    ) : (
-                      <p style={{ marginTop: '10px' }}>No photo provided.</p>
-                    )}
-                    {isAdmin && (
-                      <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '10px', background: 'red', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Delete Dot</button>
-                    )}
-                  </div>
-                </Popup>
-              </CircleMarker>
-            );
-          }
+                      // 1. Find the team that captured this mission
+                      const capturingTeam = teams.find(t => t.id === mission.team_id);
+                      // 2. Grab their color, or fall back to the default green if they don't have one
+                      const teamColor = capturingTeam?.color || '#28a745';
+
+                      return (
+                        <CircleMarker
+                          key={reactKey}
+                          center={[mission.lat, mission.lng]}
+                          radius={12}
+                          color={teamColor}        // Outline color
+                          fillColor={teamColor}    // Inside color
+                          fillOpacity={0.8}
+                        >
+                          <Popup>
+                            <div style={{ textAlign: 'center' }}>
+                              <strong style={{ color: teamColor }}>Secured: {mission.title}</strong>
+                              {mission.proof_url ? (
+                                <img src={mission.proof_url} alt="Proof" style={{ width: '200px', borderRadius: '8px', marginTop: '10px', display: 'block' }} />
+                              ) : (
+                                <p style={{ marginTop: '10px' }}>No photo provided.</p>
+                              )}
+                              {isAdmin && (
+                                <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '10px', background: 'red', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Delete Dot</button>
+                              )}
+                            </div>
+                          </Popup>
+                        </CircleMarker>
+                      );
+                    }
         })}
       </MapContainer>
     </div>
