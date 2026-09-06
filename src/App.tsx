@@ -9,7 +9,7 @@ import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 const DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Interface for OvalAvatar props
+// Interface voor OvalAvatar props
 interface OvalAvatarProps {
   src?: string | null;
   name?: string;
@@ -19,34 +19,35 @@ interface OvalAvatarProps {
 }
 
 // Reusable Oval Avatar Component
-const OvalAvatar = ({ src, name, width = 40, height = 52, border = '2px solid #333' }: OvalAvatarProps) => (
+const OvalAvatar = ({ src, name, width = 40, height = 52, border = '2px solid #d4af37' }: OvalAvatarProps) => (
   <div style={{
     width: `${width}px`,
     height: `${height}px`,
     borderRadius: '50%',
     overflow: 'hidden',
     border: border,
-    background: '#e0e0e0',
+    background: '#1a1a1a',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0
+    flexShrink: 0,
+    boxShadow: '0 2px 5px rgba(0,0,0,0.8)'
   }}>
     {src ? (
-      <img src={src} alt={name || 'User'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <img src={src} alt={name || 'Mafioso'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
     ) : (
-      <span style={{ fontSize: `${width * 0.5}px`, userSelect: 'none' }}>👤</span>
+      <span style={{ fontSize: `${width * 0.5}px`, userSelect: 'none' }}>🕶️</span>
     )}
   </div>
 );
 
-// Typed car icon generator
+// Mafia Car icon generator
 const createCarIcon = (color?: string) => L.divIcon({
   html: `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.6)); display: block;">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.9)); display: block;">
       <path
-        fill="${color || '#000000'}"
-        stroke="#ffffff"
+        fill="${color || '#b22222'}"
+        stroke="#ffd700"
         stroke-width="1.2"
         stroke-linejoin="round"
         d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.04 3H5.81l1.04-3zM19 17c-.83 0-1.5-.67-1.5-1.5S18.17 14 19 14s1.5.67 1.5 1.5S19.83 17 19 17zm-14 0c-.83 0-1.5-.67-1.5-1.5S4.17 14 5 14s1.5.67 1.5 1.5S5.83 17 5 17z"
@@ -54,21 +55,21 @@ const createCarIcon = (color?: string) => L.divIcon({
     </svg>
   `,
   className: '',
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
+  iconSize: [38, 38],
+  iconAnchor: [19, 19],
 });
 
-// Portrait icon for hostages/targets on the map
-const createPortraitIcon = (avatarUrl?: string | null, borderColor: string = '#dc3545') => L.divIcon({
+// Portrait icon voor gijzelaars/gevangen mafiosi op de kaart
+const createPortraitIcon = (avatarUrl?: string | null, borderColor: string = '#8b0000') => L.divIcon({
   html: `
     <div style="
       width: 44px;
       height: 58px;
       border-radius: 50%;
       border: 3px solid ${borderColor};
-      background: #e0e0e0;
+      background: #111;
       overflow: hidden;
-      box-shadow: 0px 3px 8px rgba(0,0,0,0.5);
+      box-shadow: 0px 4px 10px rgba(0,0,0,0.9);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -77,13 +78,13 @@ const createPortraitIcon = (avatarUrl?: string | null, borderColor: string = '#d
       ${avatarUrl && avatarUrl.trim() !== ''
         ? `<img
             src="${avatarUrl}"
-            alt="Target"
+            alt="Gijzelaar"
             referrerpolicy="no-referrer"
             style="width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; object-fit: cover; display: block;"
             onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
           />
-          <span style="display:none; font-size:24px; user-select:none;">👤</span>`
-        : `<span style="font-size:24px; user-select:none;">👤</span>`
+          <span style="display:none; font-size:24px; user-select:none;">🕶️</span>`
+        : `<span style="font-size:24px; user-select:none;">🕶️</span>`
       }
     </div>
   `,
@@ -92,19 +93,18 @@ const createPortraitIcon = (avatarUrl?: string | null, borderColor: string = '#d
   iconAnchor: [22, 29],
 });
 
-// Captured hostage icon: Portrait badge with team-colored checkmark badge on bottom-right
+// Geredde gijzelaar icon: Gold/Team badge met vinkje rechtsonder
 const createCapturedCheckIcon = (avatarUrl?: string | null, teamColor: string = '#28a745') => L.divIcon({
   html: `
     <div style="position: relative; width: 44px; height: 58px;">
-      <!-- Portrait Frame -->
       <div style="
         width: 44px;
         height: 58px;
         border-radius: 50%;
         border: 3px solid ${teamColor};
-        background: #e0e0e0;
+        background: #111;
         overflow: hidden;
-        box-shadow: 0px 3px 8px rgba(0,0,0,0.5);
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.9);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -113,17 +113,16 @@ const createCapturedCheckIcon = (avatarUrl?: string | null, teamColor: string = 
         ${avatarUrl && avatarUrl.trim() !== ''
           ? `<img
               src="${avatarUrl}"
-              alt="Target"
+              alt="Geredde Mafioso"
               referrerpolicy="no-referrer"
               style="width: 100% !important; height: 100% !important; max-width: 100% !important; max-height: 100% !important; object-fit: cover; display: block;"
               onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
             />
-            <span style="display:none; font-size:24px; user-select:none;">👤</span>`
-          : `<span style="font-size:24px; user-select:none;">👤</span>`
+            <span style="display:none; font-size:24px; user-select:none;">🤝</span>`
+          : `<span style="font-size:24px; user-select:none;">🤝</span>`
         }
       </div>
 
-      <!-- Bottom-Right Team Checkmark Badge -->
       <div style="
         position: absolute;
         bottom: -2px;
@@ -132,8 +131,8 @@ const createCapturedCheckIcon = (avatarUrl?: string | null, teamColor: string = 
         height: 22px;
         border-radius: 50%;
         background: ${teamColor};
-        border: 2px solid #ffffff;
-        box-shadow: 0px 2px 5px rgba(0,0,0,0.5);
+        border: 2px solid #ffd700;
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.9);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -196,7 +195,7 @@ export default function App() {
       const user = uRes.data.find(u => u.id === savedUserId);
       if (user) {
         if (user.device_id !== myDeviceId) {
-          alert(`Your session was unlocked by the Admin. You have been disconnected!`);
+          alert(`Je toegang is ingetrokken op bevel van de Don (*Silenzio*).`);
           localStorage.removeItem('userId');
           setCurrentUser(null);
           setCurrentTeam(null);
@@ -262,7 +261,7 @@ export default function App() {
   };
 
   const handleReportLiar = async (userId: string) => {
-    if (!window.confirm("Report this person for not being in the car?")) return;
+    if (!window.confirm("Beschuldig deze mafioso van het schenden van Omertà (zit niet in de macchina)?")) return;
     await supabase.from('users').update({ is_reported: true }).eq('id', userId);
     fetchAllData();
   };
@@ -317,7 +316,7 @@ export default function App() {
     const targetUser = users.find(u => u.id === selectedTargetUserId);
 
     await supabase.from('missions').insert([{
-      title: targetUser?.name || 'Target',
+      title: targetUser?.name || 'Gevangen Mafioso',
       user_id: selectedTargetUserId,
       lat: newTargetLoc.lat,
       lng: newTargetLoc.lng,
@@ -342,73 +341,98 @@ export default function App() {
   };
 
   const handleRejectCapture = async (id: string) => {
-    if (!window.confirm("Reject this photo and reset the target location?")) return;
+    if (!window.confirm("Reddingsbewijs afkeuren en mafioso als gijzelaar laten staan?")) return;
     await supabase.from('missions').update({ status: 'available', proof_url: null, team_id: null }).eq('id', id);
     fetchAllData();
   };
 
   const handleDeleteMission = async (id: string) => {
-    if (!window.confirm("Are you sure you want to permanently delete this pin?")) return;
+    if (!window.confirm("Dit gijzelaarsdossier permanent wissen (*Silenzio*)?")) return;
     await supabase.from('missions').delete().eq('id', id);
     fetchAllData();
   };
 
-  // LOGIN SCREEN
+  // INLOGSCHERM (MAFIA NOIR)
   if (!isAdmin && !currentUser) {
     return (
-      <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '600px', margin: '0 auto' }}>
-        <h2>Who are you?</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {users.map(u => {
-            const assignedTeam = teams.find(t => t.id === u.team_id);
-            const isClaimedBySomeoneElse = u.device_id && u.device_id !== myDeviceId;
-            const hasAdminCreatedTarget = missions.some(m => m.user_id === u.id);
+      <div style={{ padding: '30px 20px', backgroundColor: '#0e0e0e', color: '#e0e0e0', minHeight: '100vh', fontFamily: 'Georgia, serif' }}>
+        <style>{`
+          ::placeholder { color: #888; }
+          select option { background: #1a1a1a; color: #d4af37; }
+        `}</style>
+        <div style={{ maxWidth: '550px', margin: '0 auto' }}>
+          <h1 style={{ color: '#d4af37', textAlign: 'center', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '5px', fontSize: '26px' }}>
+            🇮🇹 La Cosa Nostra
+          </h1>
+          <p style={{ textAlign: 'center', color: '#888', fontStyle: 'italic', marginTop: '0', marginBottom: '25px' }}>
+            Meld je bij de Famiglia, Amico...
+          </p>
 
-            return (
-              <div key={u.id} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isClaimedBySomeoneElse ? '#ffe6e6' : '#f9f9f9', opacity: isClaimedBySomeoneElse ? 0.7 : 1, gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <OvalAvatar src={u.avatar_url} name={u.name} />
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <strong style={{ fontSize: '18px', textDecoration: isClaimedBySomeoneElse ? 'line-through' : 'none' }}>{u.name}</strong>
-                    <span style={{ fontSize: '12px', color: '#666' }}>
-                      {assignedTeam ? `Team: ${assignedTeam.driver_name}` : hasAdminCreatedTarget ? 'Target Marker Active' : 'Unassigned'}
-                    </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {users.map(u => {
+              const assignedTeam = teams.find(t => t.id === u.team_id);
+              const isClaimedBySomeoneElse = u.device_id && u.device_id !== myDeviceId;
+              const hasAdminCreatedTarget = missions.some(m => m.user_id === u.id);
+
+              return (
+                <div key={u.id} style={{
+                  border: '1px solid #333',
+                  padding: '14px 16px',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: isClaimedBySomeoneElse ? '#1e0f0f' : '#161616',
+                  opacity: isClaimedBySomeoneElse ? 0.6 : 1,
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.6)',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <OvalAvatar src={u.avatar_url} name={u.name} border="2px solid #d4af37" />
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <strong style={{ fontSize: '18px', color: '#f0f0f0', textDecoration: isClaimedBySomeoneElse ? 'line-through' : 'none' }}>
+                        {u.name}
+                      </strong>
+                      <span style={{ fontSize: '12px', color: '#aaa', fontStyle: 'italic' }}>
+                        {assignedTeam ? `Capo: ${assignedTeam.driver_name}` : hasAdminCreatedTarget ? '⛓️ Gijzelaar / Gevangen Mafioso' : 'Niet toegewezen (Straniero)'}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                {isClaimedBySomeoneElse ? (
-                  <span style={{ fontSize: '14px', color: '#cc0000', fontWeight: 'bold' }}>🔒 Locked (Ask Boss)</span>
-                ) : u.team_id && assignedTeam ? (
-                  <button
-                    onClick={() => handleLogin(u.id)}
-                    style={{ padding: '10px 15px', background: 'black', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    Enter Game (🚘 {assignedTeam.driver_name})
-                  </button>
-                ) : (
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {hasAdminCreatedTarget && (
-                      <button
-                        onClick={() => handleLogin(u.id)}
-                        style={{ padding: '10px 12px', background: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
-                      >
-                        👁️ Watch as Spectator
-                      </button>
-                    )}
-
-                    <select
-                      onChange={(e) => handleJoinTeam(u.id, e.target.value)}
-                      defaultValue=""
-                      style={{ padding: '10px', borderRadius: '4px', border: '1px solid #aaa' }}
+                  {isClaimedBySomeoneElse ? (
+                    <span style={{ fontSize: '12px', color: '#b22222', fontWeight: 'bold' }}>🔒 Vergrendeld door Don</span>
+                  ) : u.team_id && assignedTeam ? (
+                    <button
+                      onClick={() => handleLogin(u.id)}
+                      style={{ padding: '8px 14px', background: '#b22222', color: 'white', border: '1px solid #8b0000', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', textTransform: 'uppercase' }}
                     >
-                      <option value="" disabled>Join Car...</option>
-                      {teams.map(t => <option key={t.id} value={t.id}>{t.driver_name}</option>)}
-                    </select>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                      Meld bij Capo (🚘 {assignedTeam.driver_name})
+                    </button>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      {hasAdminCreatedTarget && (
+                        <button
+                          onClick={() => handleLogin(u.id)}
+                          style={{ padding: '8px 10px', background: '#2c3e50', color: '#ffd700', border: '1px solid #34495e', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
+                        >
+                          👁️ Consigliere Weergave
+                        </button>
+                      )}
+
+                      <select
+                        onChange={(e) => handleJoinTeam(u.id, e.target.value)}
+                        defaultValue=""
+                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid #444', background: '#222', color: '#d4af37', fontSize: '12px' }}
+                      >
+                        <option value="" disabled>Kies Crew...</option>
+                        {teams.map(t => <option key={t.id} value={t.id}>Capo {t.driver_name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
@@ -418,22 +442,33 @@ export default function App() {
   const carPassengers = currentTeam ? users.filter(u => u.team_id === currentTeam.id) : [];
 
   return (
-    <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
+    <div style={{ height: '100vh', width: '100vw', position: 'relative', background: '#0e0e0e' }}>
 
-      {/* Unified Control Header */}
+      {/* Leaflet popups styling aanpassen naar mafia noir thema */}
+      <style>{`
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+          background: #181818 !important;
+          color: #e0e0e0 !important;
+          border: 1px solid #d4af37 !important;
+          box-shadow: 0 5px 15px rgba(0,0,0,0.9) !important;
+        }
+        .leaflet-container { background: #0e0e0e !important; }
+      `}</style>
+
+      {/* Mafia Control Header */}
       {!isAdmin && currentUser && (
-        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: 'calc(100vw - 20px)' }}>
-          <div style={{ background: 'rgba(0,0,0,0.85)', color: 'white', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <OvalAvatar src={currentUser.avatar_url} name={currentUser.name} width={32} height={42} border="1px solid #fff" />
+        <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: 'calc(100vw - 24px)' }}>
+          <div style={{ background: 'rgba(15, 15, 15, 0.92)', color: 'white', padding: '10px 14px', borderRadius: '8px', border: '1px solid #d4af37', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', boxShadow: '0 4px 12px rgba(0,0,0,0.8)' }}>
+            <OvalAvatar src={currentUser.avatar_url} name={currentUser.name} width={34} height={44} border="1px solid #ffd700" />
 
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{currentUser.name}</span>
-              <span style={{ fontSize: '11px', color: '#ccc' }}>{currentTeam ? `Car: ${currentTeam.driver_name}` : 'Spectator'}</span>
+              <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#ffd700', letterSpacing: '0.5px' }}>{currentUser.name}</span>
+              <span style={{ fontSize: '11px', color: '#aaa', fontStyle: 'italic' }}>{currentTeam ? `Capo: ${currentTeam.driver_name}` : 'Consigliere Weergave'}</span>
             </div>
 
-            {/* Take Selfie/Portrait directly via Camera */}
-            <label style={{ fontSize: '11px', background: '#333', color: '#fff', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #666' }}>
-              📷 Take Portrait
+            {/* Mugshot / Foto maken */}
+            <label style={{ fontSize: '11px', background: '#262626', color: '#e0e0e0', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #444', fontWeight: 'bold' }}>
+              📸 Maak Mugshot
               <input
                 type="file"
                 accept="image/*"
@@ -447,31 +482,33 @@ export default function App() {
               />
             </label>
 
-            {/* Integrated Car Roster Button */}
+            {/* Crew Roster Knop */}
             {currentTeam && (
               <button
                 onClick={() => setShowRoster(!showRoster)}
-                style={{ fontSize: '11px', padding: '6px 10px', background: showRoster ? '#444' : '#222', color: 'white', border: '1px solid #666', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                style={{ fontSize: '11px', padding: '6px 10px', background: showRoster ? '#8b0000' : '#1e1e1e', color: 'white', border: '1px solid #d4af37', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
               >
-                🚘 Car Roster ({carPassengers.length})
+                🚘 Crew Lijst ({carPassengers.length})
               </button>
             )}
           </div>
 
-          {/* Inline Car Roster Dropdown Panel */}
+          {/* Inline Crew Roster Paneel */}
           {!isAdmin && currentTeam && showRoster && (
-            <div style={{ background: 'white', padding: '12px', border: '2px solid black', borderRadius: '8px', minWidth: '240px', boxShadow: '0px 4px 10px rgba(0,0,0,0.3)' }}>
-              <h4 style={{ margin: '0 0 10px 0' }}>{currentTeam?.driver_name}'s Car</h4>
+            <div style={{ background: '#181818', color: '#e0e0e0', padding: '14px', border: '1px solid #d4af37', borderRadius: '8px', minWidth: '250px', boxShadow: '0px 6px 15px rgba(0,0,0,0.9)' }}>
+              <h4 style={{ margin: '0 0 10px 0', color: '#d4af37', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '13px' }}>Capo {currentTeam?.driver_name}'s Crew</h4>
               {carPassengers.map(u => (
-                <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '10px' }}>
+                <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '10px', borderBottom: '1px solid #282828', paddingBottom: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <OvalAvatar src={u.avatar_url} name={u.name} width={30} height={40} />
-                    <span style={{ color: u.is_reported ? 'red' : 'black', fontWeight: u.id === currentUser?.id ? 'bold' : 'normal' }}>
-                      {u.name} {u.is_reported && '(REPORTED)'}
+                    <span style={{ color: u.is_reported ? '#ff4d4d' : '#f0f0f0', fontWeight: u.id === currentUser?.id ? 'bold' : 'normal', fontSize: '13px' }}>
+                      {u.name} {u.is_reported && '(TRADITORE)'}
                     </span>
                   </div>
                   {u.id !== currentUser?.id && (
-                    <button onClick={() => handleReportLiar(u.id)} style={{ fontSize: '11px' }}>Not here!</button>
+                    <button onClick={() => handleReportLiar(u.id)} style={{ fontSize: '10px', padding: '4px 6px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>
+                      Niet in Macchina!
+                    </button>
                   )}
                 </div>
               ))}
@@ -480,47 +517,49 @@ export default function App() {
         </div>
       )}
 
-      {/* Admin Panel */}
+      {/* Admin Panel (Hoofdkwartier van de Don) */}
       {isAdmin && (
-        <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <button onClick={() => setShowAdminRoster(!showAdminRoster)} style={{ padding: '10px', background: 'purple', color: 'white', marginBottom: '10px', cursor: 'pointer', border: 'none', fontWeight: 'bold', borderRadius: '4px' }}>
-            👑 Manage Teams
+        <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+          <button onClick={() => setShowAdminRoster(!showAdminRoster)} style={{ padding: '10px 14px', background: '#8b0000', color: '#ffd700', marginBottom: '10px', cursor: 'pointer', border: '1px solid #ffd700', fontWeight: 'bold', borderRadius: '4px', letterSpacing: '1px', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
+            👑 Don's Hoofdkwartier (Famiglia Lijst)
           </button>
 
           {users.some(u => u.is_reported) && (
-            <div style={{ background: 'red', color: 'white', padding: '10px', marginBottom: '10px', border: '2px solid darkred', borderRadius: '4px' }}>
-              <h4 style={{ margin: '0 0 10px 0' }}>🚨 Discrepancies Reported!</h4>
+            <div style={{ background: '#2a0000', color: '#ff4d4d', padding: '12px', marginBottom: '10px', border: '2px solid #8b0000', borderRadius: '6px', maxWidth: '300px' }}>
+              <h4 style={{ margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '13px' }}>🚨 Omertà Gebroken! Verrader Gemeld</h4>
               {users.filter(u => u.is_reported).map(u => (
-                <div key={u.id} style={{ display: 'flex', gap: '8px', marginBottom: '5px', alignItems: 'center' }}>
-                  <span>{u.name}</span>
-                  <button onClick={() => adminAssignUser(u.id, null)} style={{ cursor: 'pointer', padding: '4px 8px', background: 'black', color: 'white', border: 'none', borderRadius: '3px' }}>
-                    Remove
-                  </button>
-                  <button onClick={() => adminDismissReport(u.id)} style={{ cursor: 'pointer', padding: '4px 8px', background: 'white', color: 'black', border: 'none', borderRadius: '3px', fontWeight: 'bold' }}>
-                    Ignore
-                  </button>
+                <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '6px', alignItems: 'center' }}>
+                  <span style={{ color: '#fff', fontSize: '13px' }}>{u.name}</span>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button onClick={() => adminAssignUser(u.id, null)} style={{ cursor: 'pointer', padding: '4px 8px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '3px', fontSize: '11px' }}>
+                      Verbannen
+                    </button>
+                    <button onClick={() => adminDismissReport(u.id)} style={{ cursor: 'pointer', padding: '4px 8px', background: '#333', color: '#ddd', border: '1px solid #555', borderRadius: '3px', fontSize: '11px' }}>
+                      Gratie
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
 
           {showAdminRoster && (
-            <div style={{ background: 'white', padding: '15px', border: '2px solid black', borderRadius: '8px', maxHeight: '70vh', overflowY: 'auto', boxShadow: '0px 4px 6px rgba(0,0,0,0.3)' }}>
-              <h4 style={{ margin: '0 0 15px 0' }}>All Players</h4>
+            <div style={{ background: '#141414', border: '1px solid #d4af37', color: '#eee', padding: '15px', borderRadius: '8px', maxHeight: '70vh', overflowY: 'auto', boxShadow: '0px 6px 15px rgba(0,0,0,0.9)' }}>
+              <h4 style={{ margin: '0 0 15px 0', color: '#ffd700', textTransform: 'uppercase', letterSpacing: '1px' }}>Alle Mafiosi</h4>
               {users.map(u => (
-                <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', gap: '15px', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '5px' }}>
+                <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', gap: '15px', alignItems: 'center', borderBottom: '1px solid #282828', paddingBottom: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <OvalAvatar src={u.avatar_url} name={u.name} width={30} height={40} />
-                    <span style={{ color: u.is_reported ? 'red' : 'black', fontWeight: u.is_reported ? 'bold' : 'normal' }}>{u.name}</span>
+                    <span style={{ color: u.is_reported ? '#ff4d4d' : '#f0f0f0', fontSize: '13px' }}>{u.name}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '5px' }}>
-                    <select value={u.team_id || ''} onChange={(e) => adminAssignUser(u.id, e.target.value || null)} style={{ padding: '5px' }}>
-                      <option value="">-- Unassigned --</option>
-                      {teams.map(t => <option key={t.id} value={t.id}>{t.driver_name}</option>)}
+                    <select value={u.team_id || ''} onChange={(e) => adminAssignUser(u.id, e.target.value || null)} style={{ padding: '4px', background: '#222', color: '#d4af37', border: '1px solid #444', fontSize: '12px' }}>
+                      <option value="">-- Niet toegewezen --</option>
+                      {teams.map(t => <option key={t.id} value={t.id}>Capo {t.driver_name}</option>)}
                     </select>
                     {u.device_id && (
-                      <button onClick={async () => { await supabase.from('users').update({ device_id: null }).eq('id', u.id); fetchAllData(); }} style={{ padding: '5px', background: 'orange', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                        🔓 Unlock
+                      <button onClick={async () => { await supabase.from('users').update({ device_id: null }).eq('id', u.id); fetchAllData(); }} style={{ padding: '4px 8px', background: '#d4af37', color: 'black', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>
+                        🔓 Ontgrendelen
                       </button>
                     )}
                   </div>
@@ -531,52 +570,61 @@ export default function App() {
         </div>
       )}
 
-      {/* Admin Add Target Overlay */}
+      {/* Admin Gijzelaar Toevoegen Overlay */}
       {newTargetLoc && (
-        <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', background: 'white', padding: '20px', borderRadius: '8px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '260px' }}>
-          <h3>Place User Target</h3>
-          <select value={selectedTargetUserId} onChange={(e) => setSelectedTargetUserId(e.target.value)} style={{ padding: '8px' }}>
-            <option value="">Select User Account...</option>
+        <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', background: '#161616', color: '#e0e0e0', border: '2px solid #8b0000', padding: '20px', borderRadius: '8px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '280px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)' }}>
+          <h3 style={{ margin: 0, color: '#d4af37', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '16px' }}>Plaats Gevangen Mafioso / Gijzelaar</h3>
+          <select value={selectedTargetUserId} onChange={(e) => setSelectedTargetUserId(e.target.value)} style={{ padding: '10px', background: '#222', color: '#e0e0e0', border: '1px solid #444', borderRadius: '4px' }}>
+            <option value="">Selecteer Gijzelaar...</option>
             {users.map(u => (
-              <option key={u.id} value={u.id}>{u.name} {u.team_id ? '(Assigned)' : '(Unassigned)'}</option>
+              <option key={u.id} value={u.id}>{u.name} {u.team_id ? '(Toegewezen)' : '(Niet toegewezen)'}</option>
             ))}
           </select>
 
           {selectedTargetUserId && (() => {
             const selectedUser = users.find(u => u.id === selectedTargetUserId);
             return (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', background: '#f5f5f5', borderRadius: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#222', borderRadius: '6px', border: '1px solid #333' }}>
                 <OvalAvatar src={selectedUser?.avatar_url} name={selectedUser?.name} />
-                <span style={{ fontSize: '13px' }}>{selectedUser?.avatar_url ? 'Portrait attached' : 'No portrait set'}</span>
+                <span style={{ fontSize: '12px', color: '#aaa' }}>{selectedUser?.avatar_url ? 'Mugshot aanwezig' : 'Geen mugshot in dossier'}</span>
               </div>
             );
           })()}
 
-          <button onClick={handleCreateTarget} disabled={!selectedTargetUserId}>{isAdminUploading ? 'Saving...' : 'Drop Pin'}</button>
-          <button onClick={() => setNewTargetLoc(null)}>Cancel</button>
+          <button onClick={handleCreateTarget} disabled={!selectedTargetUserId} style={{ padding: '10px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', textTransform: 'uppercase' }}>
+            {isAdminUploading ? 'Gijzelaar Plaatst...' : 'Start Reddingsmissie'}
+          </button>
+          <button onClick={() => setNewTargetLoc(null)} style={{ padding: '8px', background: '#333', color: '#aaa', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Annuleren</button>
         </div>
       )}
 
-      {/* Player Capture Overlay */}
+      {/* Speler Reddings-overlay */}
       {captureMission && (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <h2 style={{ color: 'white', textAlign: 'center' }}>Capture: {captureMission.title}</h2>
-          <input type="file" accept="image/*" capture="environment" onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProofFile(e.target.files ? e.target.files[0] : null)} style={{ margin: '20px 0', color: 'white' }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.92)', zIndex: 2000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <h2 style={{ color: '#d4af37', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '5px' }}>
+            Herover Mafioso: {captureMission.title}
+          </h2>
+          <p style={{ color: '#aaa', fontStyle: 'italic', marginBottom: '20px' }}>Lever fotobewijs van de redding voor de Don...</p>
+          <input type="file" accept="image/*" capture="environment" onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProofFile(e.target.files ? e.target.files[0] : null)} style={{ margin: '15px 0', color: 'white' }} />
           <div style={{ display: 'flex', gap: '15px' }}>
-            <button onClick={handlePlayerCapture} disabled={isPlayerUploading || !proofFile} style={{ padding: '12px 24px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px' }}>
-              {isPlayerUploading ? 'Uploading...' : 'Confirm Photo'}
+            <button onClick={handlePlayerCapture} disabled={isPlayerUploading || !proofFile} style={{ padding: '12px 24px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer' }}>
+              {isPlayerUploading ? 'Bewijs Versturen...' : 'Bevestig Reddingsbewijs'}
             </button>
-            <button onClick={() => { setCaptureMission(null); setProofFile(null); }} style={{ padding: '12px 24px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '5px' }}>Cancel</button>
+            <button onClick={() => { setCaptureMission(null); setProofFile(null); }} style={{ padding: '12px 24px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Annuleren</button>
           </div>
         </div>
       )}
 
-      {/* Map Container */}
+      {/* Map Container (Esri World Dark Gray Canvas) */}
       <MapContainer center={mapCenter} zoom={14} style={{ height: '100%', width: '100%', zIndex: 1 }}>
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <TileLayer
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+          attribution="Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+          maxZoom={16}
+        />
         <AdminMapEvents />
 
-        {/* Cars on Map */}
+        {/* Auto's op de kaart */}
         {teams.filter(t => t.lat && t.lng).map(team => {
           const isMyTeam = currentTeam?.id === team.id;
           const passengers = users.filter(u => u.team_id === team.id);
@@ -584,22 +632,22 @@ export default function App() {
           return (
             <Marker key={team.id} position={[team.lat, team.lng]} icon={createCarIcon(team.color)} zIndexOffset={isMyTeam ? 1000 : 0}>
               <Popup>
-                <div style={{ textAlign: 'center', minWidth: '160px' }}>
-                  <strong style={{ fontSize: '15px' }}>{team.driver_name}'s Car</strong>
-                  {isMyTeam && <span style={{ color: '#008800', fontWeight: 'bold', display: 'block', fontSize: '11px' }}>(Your Car)</span>}
+                <div style={{ textAlign: 'center', minWidth: '170px' }}>
+                  <strong style={{ fontSize: '15px', color: '#ffd700' }}>Capo {team.driver_name}'s Macchina</strong>
+                  {isMyTeam && <span style={{ color: '#28a745', fontWeight: 'bold', display: 'block', fontSize: '11px', marginTop: '2px' }}>(Jouw Crew)</span>}
 
-                  <div style={{ marginTop: '10px', fontSize: '12px', fontWeight: 'bold', color: '#555' }}>Passengers ({passengers.length})</div>
+                  <div style={{ marginTop: '10px', fontSize: '11px', fontWeight: 'bold', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Mafiosi Aan Boord ({passengers.length})</div>
 
                   <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '8px' }}>
                     {passengers.length > 0 ? (
                       passengers.map(p => (
                         <div key={p.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '50px' }}>
-                          <OvalAvatar src={p.avatar_url} name={p.name} width={38} height={50} border={`2px solid ${team.color || '#333'}`} />
-                          <span style={{ fontSize: '11px', marginTop: '3px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '100%' }}>{p.name}</span>
+                          <OvalAvatar src={p.avatar_url} name={p.name} width={38} height={50} border={`2px solid ${team.color || '#d4af37'}`} />
+                          <span style={{ fontSize: '11px', marginTop: '3px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '100%', color: '#ddd' }}>{p.name}</span>
                         </div>
                       ))
                     ) : (
-                      <span style={{ fontStyle: 'italic', fontSize: '12px', color: '#888' }}>Empty car</span>
+                      <span style={{ fontStyle: 'italic', fontSize: '12px', color: '#666' }}>Geen mafiosi in de wagen</span>
                     )}
                   </div>
                 </div>
@@ -608,7 +656,7 @@ export default function App() {
           );
         })}
 
-        {/* Target Pins (Hostages) */}
+        {/* Gijzelaars-markers op de kaart */}
         {missions.map((mission) => {
           const reactKey = `${mission.id}-${mission.status}`;
           const targetUser = users.find(u => u.id === mission.user_id);
@@ -619,22 +667,23 @@ export default function App() {
               <Marker
                 key={reactKey}
                 position={[mission.lat, mission.lng]}
-                icon={createPortraitIcon(portraitUrl, '#dc3545')}
+                icon={createPortraitIcon(portraitUrl, '#8b0000')}
               >
                 <Popup>
                   <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <OvalAvatar src={portraitUrl} name={mission.title} width={60} height={80} border="3px solid #dc3545" />
-                    <strong style={{ fontSize: '16px', marginTop: '6px' }}>{mission.title}</strong>
+                    <OvalAvatar src={portraitUrl} name={mission.title} width={60} height={80} border="3px solid #8b0000" />
+                    <strong style={{ fontSize: '16px', marginTop: '6px', color: '#ff4d4d' }}>{mission.title}</strong>
+                    <span style={{ fontSize: '11px', color: '#aaa', fontStyle: 'italic' }}>Gijzelaar / Gevangen Mafioso</span>
 
                     {isAdmin ? (
                       <>
-                        <button onClick={() => handleApproveCapture(mission.id)} style={{ width: '100%', marginTop: '10px', background: 'orange', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Admin: Quick Capture</button>
-                        <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '5px', background: 'red', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Admin: Delete Pin</button>
+                        <button onClick={() => handleApproveCapture(mission.id)} style={{ width: '100%', marginTop: '10px', background: '#d4af37', color: 'black', fontWeight: 'bold', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Admin: Directe Redding</button>
+                        <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '5px', background: '#8b0000', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Admin: Wis Dossier</button>
                       </>
                     ) : currentTeam ? (
-                      <button onClick={() => setCaptureMission(mission)} style={{ width: '100%', marginTop: '10px', background: 'black', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px' }}>Capture Target</button>
+                      <button onClick={() => setCaptureMission(mission)} style={{ width: '100%', marginTop: '10px', background: '#8b0000', color: 'white', border: '1px solid #ff4d4d', padding: '8px', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px', textTransform: 'uppercase' }}>Herover Mafioso</button>
                     ) : (
-                      <span style={{ fontSize: '12px', color: '#666', fontStyle: 'italic', display: 'block', marginTop: '5px' }}>Unclaimed target</span>
+                      <span style={{ fontSize: '11px', color: '#888', fontStyle: 'italic', display: 'block', marginTop: '5px' }}>Sluit je aan bij een crew om mafioso te redden</span>
                     )}
                   </div>
                 </Popup>
@@ -645,22 +694,22 @@ export default function App() {
               <Marker
                 key={reactKey}
                 position={[mission.lat, mission.lng]}
-                icon={createPortraitIcon(portraitUrl, '#ffc107')}
+                icon={createPortraitIcon(portraitUrl, '#ffd700')}
               >
                 <Popup>
                   <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <strong style={{ color: '#d39e00' }}>Reviewing Capture: {mission.title}</strong>
+                    <strong style={{ color: '#ffd700' }}>Redding Verifiëren: {mission.title}</strong>
                     <div style={{ margin: '8px 0' }}>
-                      <OvalAvatar src={portraitUrl} name={mission.title} width={50} height={66} border="2px solid #d39e00" />
+                      <OvalAvatar src={portraitUrl} name={mission.title} width={50} height={66} border="2px solid #ffd700" />
                     </div>
-                    {mission.proof_url && <img src={mission.proof_url} alt="Proof" style={{ width: '200px', borderRadius: '8px', display: 'block' }} />}
+                    {mission.proof_url && <img src={mission.proof_url} alt="Bewijs" style={{ width: '200px', borderRadius: '8px', display: 'block', border: '1px solid #ffd700' }} />}
                     {isAdmin ? (
                       <div style={{ display: 'flex', gap: '5px', marginTop: '10px', width: '100%' }}>
-                        <button onClick={() => handleApproveCapture(mission.id)} style={{ flex: 1, background: '#28a745', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Approve</button>
-                        <button onClick={() => handleRejectCapture(mission.id)} style={{ flex: 1, background: '#dc3545', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Reject</button>
+                        <button onClick={() => handleApproveCapture(mission.id)} style={{ flex: 1, background: '#28a745', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px', fontWeight: 'bold' }}>Goedkeuren</button>
+                        <button onClick={() => handleRejectCapture(mission.id)} style={{ flex: 1, background: '#8b0000', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Afkeuren</button>
                       </div>
                     ) : (
-                      <p style={{ marginTop: '10px', fontStyle: 'italic', color: 'gray' }}>Waiting for verification...</p>
+                      <p style={{ marginTop: '10px', fontStyle: 'italic', color: '#aaa', fontSize: '12px' }}>Wachten op Don's bevestiging van de redding...</p>
                     )}
                   </div>
                 </Popup>
@@ -678,8 +727,8 @@ export default function App() {
               >
                 <Popup>
                   <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <strong style={{ color: teamColor }}>Captured: {mission.title}</strong>
-                    <span style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>Captured by {capturingTeam ? `${capturingTeam.driver_name}'s Car` : 'Team'}</span>
+                    <strong style={{ color: '#28a745' }}>Mafioso Gered: {mission.title}</strong>
+                    <span style={{ fontSize: '11px', color: '#aaa', marginBottom: '8px' }}>Heroverd door Capo {capturingTeam ? `${capturingTeam.driver_name}'s Crew` : 'Famiglia'}</span>
 
                     <div style={{ margin: '4px 0 8px 0' }}>
                       <OvalAvatar src={portraitUrl} name={mission.title} width={45} height={60} border={`2px solid ${teamColor}`} />
@@ -687,15 +736,15 @@ export default function App() {
 
                     {mission.proof_url ? (
                       <div style={{ marginTop: '6px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Proof Photo:</div>
-                        <img src={mission.proof_url} alt="Proof" style={{ width: '200px', borderRadius: '8px', display: 'block', border: '1px solid #ccc' }} />
+                        <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px', color: '#ffd700' }}>Fotobewijs van Redding:</div>
+                        <img src={mission.proof_url} alt="Bewijs" style={{ width: '200px', borderRadius: '8px', display: 'block', border: '1px solid #444' }} />
                       </div>
                     ) : (
-                      <p style={{ marginTop: '10px', fontStyle: 'italic', fontSize: '12px', color: '#888' }}>No proof photo provided.</p>
+                      <p style={{ marginTop: '10px', fontStyle: 'italic', fontSize: '12px', color: '#666' }}>Geen fotobewijs geleverd.</p>
                     )}
 
                     {isAdmin && (
-                      <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '10px', background: 'red', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Delete Pin</button>
+                      <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '10px', background: '#8b0000', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Wis Dossier</button>
                     )}
                   </div>
                 </Popup>
