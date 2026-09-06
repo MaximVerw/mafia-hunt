@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import React, { useState, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { supabase } from './supabase';
@@ -180,6 +180,14 @@ export default function App() {
   const [selectedTargetUserId, setSelectedTargetUserId] = useState('');
   const [isAdminUploading, setIsAdminUploading] = useState(false);
 
+  // Admin Route Visualizer State & Refs
+  const [locationLogs, setLocationLogs] = useState<any[]>([]);
+  const [selectedUserForTrail, setSelectedUserForTrail] = useState<string>('');
+
+  const lastPingTimeRef = useRef<number>(0);
+  const selectedUserForTrailRef = useRef<string>('');
+  selectedUserForTrailRef.current = selectedUserForTrail;
+
   const fetchAllData = async () => {
     const [mRes, tRes, uRes] = await Promise.all([
       supabase.from('missions').select('*'),
@@ -219,24 +227,65 @@ export default function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'missions' }, fetchAllData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, fetchAllData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, fetchAllData)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'location_history' }, (payload) => {
+        // Realtime update trail if admin selected this user
+        if (isAdmin && payload.new && payload.new.user_id === selectedUserForTrailRef.current) {
+          setLocationLogs(prev => [...prev, payload.new]);
+        }
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  // Watch position: throttled to send MAX once every 15 seconds (15000ms)
   useEffect(() => {
-    if (isAdmin || !currentTeam) return;
+    if (isAdmin || !currentUser) return;
 
     const watchId = navigator.geolocation.watchPosition(
       async (pos) => {
+        const now = Date.now();
+        // Prevent sending pings more frequently than 15 seconds
+        if (now - lastPingTimeRef.current < 15000) return;
+        lastPingTimeRef.current = now;
+
         const { latitude, longitude } = pos.coords;
-        await supabase.from('teams').update({ lat: latitude, lng: longitude }).eq('id', currentTeam.id);
+
+        // Update current car location if assigned to a team
+        if (currentTeam) {
+          await supabase.from('teams').update({ lat: latitude, lng: longitude }).eq('id', currentTeam.id);
+        }
+
+        // Save location ping in location_history table
+        await supabase.from('location_history').insert([{
+          user_id: currentUser.id,
+          team_id: currentTeam?.id || null,
+          lat: latitude,
+          lng: longitude
+        }]);
       },
       (err) => console.error(err),
-      { enableHighAccuracy: true, maximumAge: 5000 }
+      { enableHighAccuracy: true }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [currentTeam]);
+  }, [currentTeam, currentUser]);
+
+  // Fetch full GPS trail history for selected user
+  const fetchLocationLogs = async (userId: string) => {
+    setSelectedUserForTrail(userId);
+    if (!userId) {
+      setLocationLogs([]);
+      return;
+    }
+
+    const { data } = await supabase
+      .from('location_history')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+
+    if (data) setLocationLogs(data);
+  };
 
   const handleAvatarUpload = async (userId: string, file: File) => {
     const fileName = `avatar_${userId}_${Math.random()}.${file.name.split('.').pop()}`;
@@ -249,7 +298,7 @@ export default function App() {
   };
 
   const handleJoinTeam = async (userId: string, teamId: string) => {
-    await supabase.from('users').update({ team_id: teamId, device_id: myDeviceId, is_reported: false }).eq('id', userId);
+    await supabase.from('users').update({ team_id: teamId, device_id: myDeviceId }).eq('id', userId);
     localStorage.setItem('userId', userId);
     fetchAllData();
   };
@@ -257,12 +306,6 @@ export default function App() {
   const handleLogin = async (userId: string) => {
     await supabase.from('users').update({ device_id: myDeviceId }).eq('id', userId);
     localStorage.setItem('userId', userId);
-    fetchAllData();
-  };
-
-  const handleReportLiar = async (userId: string) => {
-    if (!window.confirm("Beschuldig deze mafioso van het schenden van Omertà (zit niet in de macchina)?")) return;
-    await supabase.from('users').update({ is_reported: true }).eq('id', userId);
     fetchAllData();
   };
 
@@ -291,12 +334,7 @@ export default function App() {
   };
 
   const adminAssignUser = async (userId: string, teamId: string | null) => {
-    await supabase.from('users').update({ team_id: teamId, is_reported: false }).eq('id', userId);
-    fetchAllData();
-  };
-
-  const adminDismissReport = async (userId: string) => {
-    await supabase.from('users').update({ is_reported: false }).eq('id', userId);
+    await supabase.from('users').update({ team_id: teamId }).eq('id', userId);
     fetchAllData();
   };
 
@@ -352,7 +390,7 @@ export default function App() {
     fetchAllData();
   };
 
-  // INLOGSCHERM (MAFIA NOIR)
+  // INLOGSCHERM
   if (!isAdmin && !currentUser) {
     return (
       <div style={{ padding: '30px 20px', backgroundColor: '#0e0e0e', color: '#e0e0e0', minHeight: '100vh', fontFamily: 'Georgia, serif' }}>
@@ -441,10 +479,14 @@ export default function App() {
   const mapCenter: [number, number] = currentTeam?.lat ? [currentTeam.lat, currentTeam.lng] : [51.0543, 3.7174];
   const carPassengers = currentTeam ? users.filter(u => u.team_id === currentTeam.id) : [];
 
+  // Parse location logs to array of valid numeric coordinate pairs
+  const trailCoordinates: [number, number][] = locationLogs
+    .map(log => [parseFloat(log.lat), parseFloat(log.lng)] as [number, number])
+    .filter(coords => !isNaN(coords[0]) && !isNaN(coords[1]));
+
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative', background: '#0e0e0e' }}>
 
-      {/* Leaflet popups styling aanpassen naar mafia noir thema */}
       <style>{`
         .leaflet-popup-content-wrapper, .leaflet-popup-tip {
           background: #181818 !important;
@@ -466,7 +508,6 @@ export default function App() {
               <span style={{ fontSize: '11px', color: '#aaa', fontStyle: 'italic' }}>{currentTeam ? `Capo: ${currentTeam.driver_name}` : 'Consigliere Weergave'}</span>
             </div>
 
-            {/* Mugshot / Foto maken */}
             <label style={{ fontSize: '11px', background: '#262626', color: '#e0e0e0', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #444', fontWeight: 'bold' }}>
               📸 Maak Mugshot
               <input
@@ -482,7 +523,6 @@ export default function App() {
               />
             </label>
 
-            {/* Crew Roster Knop */}
             {currentTeam && (
               <button
                 onClick={() => setShowRoster(!showRoster)}
@@ -493,7 +533,6 @@ export default function App() {
             )}
           </div>
 
-          {/* Inline Crew Roster Paneel */}
           {!isAdmin && currentTeam && showRoster && (
             <div style={{ background: '#181818', color: '#e0e0e0', padding: '14px', border: '1px solid #d4af37', borderRadius: '8px', minWidth: '250px', boxShadow: '0px 6px 15px rgba(0,0,0,0.9)' }}>
               <h4 style={{ margin: '0 0 10px 0', color: '#d4af37', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '13px' }}>Capo {currentTeam?.driver_name}'s Crew</h4>
@@ -501,15 +540,10 @@ export default function App() {
                 <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '10px', borderBottom: '1px solid #282828', paddingBottom: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <OvalAvatar src={u.avatar_url} name={u.name} width={30} height={40} />
-                    <span style={{ color: u.is_reported ? '#ff4d4d' : '#f0f0f0', fontWeight: u.id === currentUser?.id ? 'bold' : 'normal', fontSize: '13px' }}>
-                      {u.name} {u.is_reported && '(TRADITORE)'}
+                    <span style={{ color: '#f0f0f0', fontWeight: u.id === currentUser?.id ? 'bold' : 'normal', fontSize: '13px' }}>
+                      {u.name}
                     </span>
                   </div>
-                  {u.id !== currentUser?.id && (
-                    <button onClick={() => handleReportLiar(u.id)} style={{ fontSize: '10px', padding: '4px 6px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>
-                      Niet in Macchina!
-                    </button>
-                  )}
                 </div>
               ))}
             </div>
@@ -517,31 +551,41 @@ export default function App() {
         </div>
       )}
 
-      {/* Admin Panel (Hoofdkwartier van de Don) */}
+      {/* Admin Panel */}
       {isAdmin && (
-        <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <button onClick={() => setShowAdminRoster(!showAdminRoster)} style={{ padding: '10px 14px', background: '#8b0000', color: '#ffd700', marginBottom: '10px', cursor: 'pointer', border: '1px solid #ffd700', fontWeight: 'bold', borderRadius: '4px', letterSpacing: '1px', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
+        <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+
+          {/* Route Inspector */}
+          <div style={{ background: '#141414', border: '1px solid #d4af37', padding: '10px 14px', borderRadius: '6px', color: '#fff', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
+            <label style={{ fontSize: '11px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '4px', letterSpacing: '1px' }}>
+              📍 GPS ROUTE ANALYSEREN
+            </label>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <select
+                value={selectedUserForTrail}
+                onChange={(e) => fetchLocationLogs(e.target.value)}
+                style={{ padding: '6px', background: '#222', color: '#d4af37', border: '1px solid #444', borderRadius: '4px', fontSize: '12px' }}
+              >
+                <option value="">-- Selecteer Mafioso Route --</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+
+              {locationLogs.length > 0 && (
+                <button
+                  onClick={() => { setLocationLogs([]); setSelectedUserForTrail(''); }}
+                  style={{ padding: '6px 10px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
+                >
+                  Wis Spoor
+                </button>
+              )}
+            </div>
+          </div>
+
+          <button onClick={() => setShowAdminRoster(!showAdminRoster)} style={{ padding: '10px 14px', background: '#8b0000', color: '#ffd700', cursor: 'pointer', border: '1px solid #ffd700', fontWeight: 'bold', borderRadius: '4px', letterSpacing: '1px', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
             👑 Don's Hoofdkwartier (Famiglia Lijst)
           </button>
-
-          {users.some(u => u.is_reported) && (
-            <div style={{ background: '#2a0000', color: '#ff4d4d', padding: '12px', marginBottom: '10px', border: '2px solid #8b0000', borderRadius: '6px', maxWidth: '300px' }}>
-              <h4 style={{ margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '13px' }}>🚨 Omertà Gebroken! Verrader Gemeld</h4>
-              {users.filter(u => u.is_reported).map(u => (
-                <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', marginBottom: '6px', alignItems: 'center' }}>
-                  <span style={{ color: '#fff', fontSize: '13px' }}>{u.name}</span>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button onClick={() => adminAssignUser(u.id, null)} style={{ cursor: 'pointer', padding: '4px 8px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '3px', fontSize: '11px' }}>
-                      Verbannen
-                    </button>
-                    <button onClick={() => adminDismissReport(u.id)} style={{ cursor: 'pointer', padding: '4px 8px', background: '#333', color: '#ddd', border: '1px solid #555', borderRadius: '3px', fontSize: '11px' }}>
-                      Gratie
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
           {showAdminRoster && (
             <div style={{ background: '#141414', border: '1px solid #d4af37', color: '#eee', padding: '15px', borderRadius: '8px', maxHeight: '70vh', overflowY: 'auto', boxShadow: '0px 6px 15px rgba(0,0,0,0.9)' }}>
@@ -550,7 +594,7 @@ export default function App() {
                 <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', gap: '15px', alignItems: 'center', borderBottom: '1px solid #282828', paddingBottom: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <OvalAvatar src={u.avatar_url} name={u.name} width={30} height={40} />
-                    <span style={{ color: u.is_reported ? '#ff4d4d' : '#f0f0f0', fontSize: '13px' }}>{u.name}</span>
+                    <span style={{ color: '#f0f0f0', fontSize: '13px' }}>{u.name}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '5px' }}>
                     <select value={u.team_id || ''} onChange={(e) => adminAssignUser(u.id, e.target.value || null)} style={{ padding: '4px', background: '#222', color: '#d4af37', border: '1px solid #444', fontSize: '12px' }}>
@@ -615,7 +659,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Map Container (Esri World Dark Gray Canvas) */}
+      {/* Map Container */}
       <MapContainer center={mapCenter} zoom={14} style={{ height: '100%', width: '100%', zIndex: 1 }}>
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
@@ -623,6 +667,40 @@ export default function App() {
           maxZoom={16}
         />
         <AdminMapEvents />
+
+        {/* Admin Selected User Trail (Connecting Polyline & Waypoint Dots) */}
+        {isAdmin && trailCoordinates.length > 0 && (
+          <>
+            {/* Connecting Line */}
+            <Polyline
+              positions={trailCoordinates}
+              pathOptions={{ color: '#ff4500', weight: 4, opacity: 0.9 }}
+            />
+
+            {/* Waypoint Dots along the route */}
+            {locationLogs.map((log, index) => {
+              const lat = parseFloat(log.lat);
+              const lng = parseFloat(log.lng);
+              if (isNaN(lat) || isNaN(lng)) return null;
+
+              return (
+                <CircleMarker
+                  key={log.id || index}
+                  center={[lat, lng]}
+                  radius={5}
+                  pathOptions={{ fillColor: '#ffd700', color: '#ff4500', weight: 2, fillOpacity: 1 }}
+                >
+                  <Popup>
+                    <div style={{ fontSize: '11px', textAlign: 'center' }}>
+                      <strong>Punt #{index + 1}</strong><br />
+                      {log.created_at ? new Date(log.created_at).toLocaleTimeString() : ''}
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              );
+            })}
+          </>
+        )}
 
         {/* Auto's op de kaart */}
         {teams.filter(t => t.lat && t.lng).map(team => {
