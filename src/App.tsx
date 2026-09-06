@@ -239,67 +239,102 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchAllData();
-    const channel = supabase.channel('game-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'missions' }, fetchAllData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, fetchAllData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, fetchAllData)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'location_history' }, (payload) => {
-        // Realtime update trail if admin selected this user
-        if (isAdmin && payload.new && payload.new.user_id === selectedUserForTrailRef.current) {
-          setLocationLogs(prev => [...prev, payload.new]);
+      // 1. Initial fetch on load
+      fetchAllData();
+
+      // 2. Create a unique channel name to bypass React Strict Mode bugs
+      const channelName = `game-updates-${Math.random().toString(36).substring(7)}`;
+
+      const channel = supabase.channel(channelName)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'missions' }, (payload) => {
+          console.log('🚨 MISSIE UPDATE IN BROWSER:', payload);
+          fetchAllData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, (payload) => {
+          console.log('🚘 CREW UPDATE IN BROWSER:', payload);
+          fetchAllData();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
+          console.log('👤 MAFIOSO UPDATE IN BROWSER:', payload);
+          fetchAllData();
+        })
+        .subscribe((status, err) => {
+          console.log('📡 Realtime Status [${channelName}]:', status);
+          if (err) console.error('Realtime Error:', err);
+        });
+
+      // 3. Cleanup function
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, []); // <-- Make sure this dependency array is empty!
+
+  // Refs for tracking active user, team, and last DB insert timestamp
+  const currentUserRef = useRef<any>(currentUser);
+  currentUserRef.current = currentUser;
+
+  const currentTeamRef = useRef<any>(currentTeam);
+  currentTeamRef.current = currentTeam;
+
+  const lastInsertTimeRef = useRef<number>(0);
+
+  // Fetch fresh, uncached location strictly every 15 seconds
+  useEffect(() => {
+    if (isAdmin || !currentUser) return;
+
+    const fetchFreshLocation = () => {
+      const activeUser = currentUserRef.current;
+      if (!activeUser) return;
+
+      const optionsHigh = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+      const optionsLow = { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 };
+
+      const handleSuccess = async (pos: GeolocationPosition) => {
+        const { latitude, longitude } = pos.coords;
+        const activeTeam = currentTeamRef.current;
+
+        // 1. Update active team location state & DB
+        if (activeTeam) {
+          await supabase.from('teams').update({ lat: latitude, lng: longitude }).eq('id', activeTeam.id);
+
+          setTeams((prev: any[]) => prev.map((t: any) => t.id === activeTeam.id ? { ...t, lat: latitude, lng: longitude } : t));
+          setCurrentTeam((prev: any) => prev ? { ...prev, lat: latitude, lng: longitude } : null);
         }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
 
- // Fetch fresh, uncached location every 15 seconds
-   useEffect(() => {
-     if (isAdmin || !currentUser) return;
+        // 2. Throttle location_history inserts strictly to 15-second intervals
+        const now = Date.now();
+        if (now - lastInsertTimeRef.current >= 15000) {
+          lastInsertTimeRef.current = now;
 
-     const fetchFreshLocation = () => {
-       const optionsHigh = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
-       const optionsLow = { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 };
-const handleSuccess = async (pos: GeolocationPosition) => {
-  const { latitude, longitude } = pos.coords;
-if (currentTeam) {
-  await supabase.from('teams').update({ lat: latitude, lng: longitude }).eq('id', currentTeam.id);
+          await supabase.from('location_history').insert([{
+            user_id: activeUser.id,
+            team_id: activeTeam?.id || null,
+            lat: latitude,
+            lng: longitude
+          }]);
+        }
+      };
 
-  // Add explicit type annotations (prev: any[]) and (prev: any)
-  setTeams((prev: any[]) => prev.map((t: any) => t.id === currentTeam.id ? { ...t, lat: latitude, lng: longitude } : t));
-  setCurrentTeam((prev: any) => prev ? { ...prev, lat: latitude, lng: longitude } : null);
-}
+      const handleError = (err: GeolocationPositionError) => {
+        console.warn(`GPS High Accuracy Error (${err.code}): ${err.message}. Retrying with low accuracy...`);
+        navigator.geolocation.getCurrentPosition(
+          handleSuccess,
+          (fallbackErr) => console.error(`GPS Fallback Error (${fallbackErr.code}): ${fallbackErr.message}`),
+          optionsLow
+        );
+      };
 
-  await supabase.from('location_history').insert([{
-    user_id: currentUser.id,
-    team_id: currentTeam?.id || null,
-    lat: latitude,
-    lng: longitude
-  }]);
-};
+      navigator.geolocation.getCurrentPosition(handleSuccess, handleError, optionsHigh);
+    };
 
-       const handleError = (err: GeolocationPositionError) => {
-         console.warn(`GPS High Accuracy Error (${err.code}): ${err.message}. Retrying with low accuracy...`);
-         // Fallback to low accuracy (Wi-Fi/cellular) with maximumAge: 0
-         navigator.geolocation.getCurrentPosition(
-           handleSuccess,
-           (fallbackErr) => console.error(`GPS Fallback Error (${fallbackErr.code}): ${fallbackErr.message}`),
-           optionsLow
-         );
-       };
+    // Immediate initial fetch
+    fetchFreshLocation();
 
-       navigator.geolocation.getCurrentPosition(handleSuccess, handleError, optionsHigh);
-     };
+    // Regular interval fetch
+    const intervalId = setInterval(fetchFreshLocation, 15000);
 
-     // Trigger immediately on login/mount
-     fetchFreshLocation();
-
-     // Trigger strictly every 15 seconds
-     const intervalId = setInterval(fetchFreshLocation, 15000);
-
-     return () => clearInterval(intervalId);
-   }, [currentTeam, currentUser]);
+    return () => clearInterval(intervalId);
+  }, [isAdmin, currentUser?.id]); // Scoped only to user identity changes
   // Fetch full GPS trail history for selected user
   const fetchLocationLogs = async (userId: string) => {
     setSelectedUserForTrail(userId);
