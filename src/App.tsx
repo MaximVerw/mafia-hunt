@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -9,7 +9,6 @@ import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 const DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Reusable Oval Avatar Component
 // Interface for OvalAvatar props
 interface OvalAvatarProps {
   src?: string | null;
@@ -147,6 +146,7 @@ export default function App() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [currentTeam]);
 
+  // Upload method for current user's portrait
   const handleAvatarUpload = async (userId: string, file: File) => {
     const fileName = `avatar_${userId}_${Math.random()}.${file.name.split('.').pop()}`;
     const { error } = await supabase.storage.from('hostages').upload(fileName, file);
@@ -242,7 +242,6 @@ export default function App() {
 
     await supabase.from('missions').update({ status: 'captured' }).eq('id', missionId);
 
-    // Auto-assign captured user to the capturing team
     if (mission.user_id && mission.team_id) {
       await supabase.from('users').update({ team_id: mission.team_id }).eq('id', mission.user_id);
     }
@@ -271,8 +270,6 @@ export default function App() {
           {users.map(u => {
             const assignedTeam = teams.find(t => t.id === u.team_id);
             const isClaimedBySomeoneElse = u.device_id && u.device_id !== myDeviceId;
-
-            // Check if Admin has placed a active target marker on the map for this user
             const hasAdminCreatedTarget = missions.some(m => m.user_id === u.id);
 
             return (
@@ -284,12 +281,6 @@ export default function App() {
                     <span style={{ fontSize: '12px', color: '#666' }}>
                       {assignedTeam ? `Team: ${assignedTeam.driver_name}` : hasAdminCreatedTarget ? 'Target Marker Active' : 'Unassigned'}
                     </span>
-                    {!isClaimedBySomeoneElse && (
-                      <label style={{ fontSize: '11px', color: '#0066cc', cursor: 'pointer', marginTop: '2px' }}>
-                        📷 Change Portrait
-                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => e.target.files?.[0] && handleAvatarUpload(u.id, e.target.files[0])} />
-                      </label>
-                    )}
                   </div>
                 </div>
 
@@ -304,7 +295,6 @@ export default function App() {
                   </button>
                 ) : (
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {/* ONLY allow spectator access if Admin created a target pin for this user */}
                     {hasAdminCreatedTarget && (
                       <button
                         onClick={() => handleLogin(u.id)}
@@ -337,11 +327,29 @@ export default function App() {
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
 
-      {/* Spectator Read-Only Bar */}
-      {!isAdmin && !currentTeam && (
-        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 1000, background: 'rgba(0,0,0,0.85)', color: 'white', padding: '8px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <OvalAvatar src={currentUser?.avatar_url} name={currentUser?.name} width={28} height={36} border="1px solid #fff" />
-          <span>👁️ Logged in as <strong>{currentUser?.name}</strong> (Spectator Mode)</span>
+      {/* Main View Top Bar - Single location to update own portrait */}
+      {!isAdmin && currentUser && (
+        <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 1000, background: 'rgba(0,0,0,0.85)', color: 'white', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <OvalAvatar src={currentUser.avatar_url} name={currentUser.name} width={32} height={42} border="1px solid #fff" />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '13px', fontWeight: 'bold' }}>{currentUser.name}</span>
+            <span style={{ fontSize: '11px', color: '#ccc' }}>{currentTeam ? `Car: ${currentTeam.driver_name}` : 'Spectator'}</span>
+          </div>
+
+          {/* Dedicated Photo Upload for Current User */}
+          <label style={{ fontSize: '11px', background: '#333', color: '#fff', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #666', marginLeft: '4px' }}>
+            📷 Portrait
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleAvatarUpload(currentUser.id, e.target.files[0]);
+                }
+              }}
+            />
+          </label>
         </div>
       )}
 
@@ -453,7 +461,7 @@ export default function App() {
       {captureMission && (
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <h2 style={{ color: 'white', textAlign: 'center' }}>Capture: {captureMission.title}</h2>
-          <input type="file" accept="image/*" capture="environment" onChange={(e) => setProofFile(e.target.files ? e.target.files[0] : null)} style={{ margin: '20px 0', color: 'white' }} />
+          <input type="file" accept="image/*" capture="environment" onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProofFile(e.target.files ? e.target.files[0] : null)} style={{ margin: '20px 0', color: 'white' }} />
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={handlePlayerCapture} disabled={isPlayerUploading || !proofFile} style={{ padding: '12px 24px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px' }}>
               {isPlayerUploading ? 'Uploading...' : 'Confirm Photo'}
@@ -468,7 +476,7 @@ export default function App() {
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <AdminMapEvents />
 
-        {/* Cars on Map (Tapping shows passenger portraits) */}
+        {/* Cars on Map */}
         {teams.filter(t => t.lat && t.lng).map(team => {
           const isMyTeam = currentTeam?.id === team.id;
           const passengers = users.filter(u => u.team_id === team.id);
