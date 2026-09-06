@@ -237,39 +237,54 @@ export default function App() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Watch position: throttled to send MAX once every 15 seconds (15000ms)
-  useEffect(() => {
-    if (isAdmin || !currentUser) return;
+ // Fetch fresh, uncached location every 15 seconds
+   useEffect(() => {
+     if (isAdmin || !currentUser) return;
 
-    const watchId = navigator.geolocation.watchPosition(
-      async (pos) => {
-        const now = Date.now();
-        // Prevent sending pings more frequently than 15 seconds
-        if (now - lastPingTimeRef.current < 15000) return;
-        lastPingTimeRef.current = now;
+     const fetchFreshLocation = () => {
+       const optionsHigh = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+       const optionsLow = { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 };
+const handleSuccess = async (pos: GeolocationPosition) => {
+  const { latitude, longitude } = pos.coords;
 
-        const { latitude, longitude } = pos.coords;
+  if (currentTeam) {
+    // 1. Update Supabase
+    await supabase.from('teams').update({ lat: latitude, lng: longitude }).eq('id', currentTeam.id);
 
-        // Update current car location if assigned to a team
-        if (currentTeam) {
-          await supabase.from('teams').update({ lat: latitude, lng: longitude }).eq('id', currentTeam.id);
-        }
+    // 2. Immediately update local state so the car moves on your map without delay
+    setTeams(prev => prev.map(t => t.id === currentTeam.id ? { ...t, lat: latitude, lng: longitude } : t));
+    setCurrentTeam(prev => prev ? { ...prev, lat: latitude, lng: longitude } : null);
+  }
 
-        // Save location ping in location_history table
-        await supabase.from('location_history').insert([{
-          user_id: currentUser.id,
-          team_id: currentTeam?.id || null,
-          lat: latitude,
-          lng: longitude
-        }]);
-      },
-      (err) => console.error(err),
-      { enableHighAccuracy: true }
-    );
+  await supabase.from('location_history').insert([{
+    user_id: currentUser.id,
+    team_id: currentTeam?.id || null,
+    lat: latitude,
+    lng: longitude
+  }]);
+};
 
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [currentTeam, currentUser]);
+       const handleError = (err: GeolocationPositionError) => {
+         console.warn(`GPS High Accuracy Error (${err.code}): ${err.message}. Retrying with low accuracy...`);
+         // Fallback to low accuracy (Wi-Fi/cellular) with maximumAge: 0
+         navigator.geolocation.getCurrentPosition(
+           handleSuccess,
+           (fallbackErr) => console.error(`GPS Fallback Error (${fallbackErr.code}): ${fallbackErr.message}`),
+           optionsLow
+         );
+       };
 
+       navigator.geolocation.getCurrentPosition(handleSuccess, handleError, optionsHigh);
+     };
+
+     // Trigger immediately on login/mount
+     fetchFreshLocation();
+
+     // Trigger strictly every 15 seconds
+     const intervalId = setInterval(fetchFreshLocation, 15000);
+
+     return () => clearInterval(intervalId);
+   }, [currentTeam, currentUser]);
   // Fetch full GPS trail history for selected user
   const fetchLocationLogs = async (userId: string) => {
     setSelectedUserForTrail(userId);
