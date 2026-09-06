@@ -10,7 +10,17 @@ const DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25
 L.Marker.prototype.options.icon = DefaultIcon;
 
 // Reusable Oval Avatar Component
-const OvalAvatar = ({ src, name, width = 40, height = 52, border = '2px solid #333' }) => (
+// Interface for OvalAvatar props
+interface OvalAvatarProps {
+  src?: string | null;
+  name?: string;
+  width?: number;
+  height?: number;
+  border?: string;
+}
+
+// Reusable Oval Avatar Component
+const OvalAvatar = ({ src, name, width = 40, height = 52, border = '2px solid #333' }: OvalAvatarProps) => (
   <div style={{
     width: `${width}px`,
     height: `${height}px`,
@@ -31,7 +41,8 @@ const OvalAvatar = ({ src, name, width = 40, height = 52, border = '2px solid #3
   </div>
 );
 
-const createCarIcon = (color) => L.divIcon({
+// Typed car icon generator
+const createCarIcon = (color?: string) => L.divIcon({
   html: `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="36" height="36" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.6)); display: block;">
       <path
