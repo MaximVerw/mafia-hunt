@@ -151,7 +151,25 @@ const createCapturedCheckIcon = (avatarUrl?: string | null, teamColor: string = 
 });
 
 const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
+// Returns a color gradient from NOW (0m ago -> Bright Red/Orange) to 30m ago (Dodger Blue)
+const getSegmentColor = (timestamp?: string) => {
+  if (!timestamp) return 'rgb(255, 69, 0)';
+  const now = Date.now();
+  const time = new Date(timestamp).getTime();
+  const ageMs = Math.max(0, now - time);
+  const maxAgeMs = 30 * 60 * 1000; // 30 minutes in milliseconds
 
+  // Ratio: 0 = Now, 1 = 30+ minutes ago
+  const ratio = Math.min(1, ageMs / maxAgeMs);
+
+  // Color 1 (Now): RGB(255, 69, 0) [Orange-Red]
+  // Color 2 (30m ago): RGB(30, 144, 255) [Dodger Blue]
+  const r = Math.round(255 + (30 - 255) * ratio);
+  const g = Math.round(69 + (144 - 69) * ratio);
+  const b = Math.round(0 + (255 - 0) * ratio);
+
+  return `rgb(${r}, ${g}, ${b})`;
+};
 const getOrCreateDeviceId = () => {
   let id = localStorage.getItem('deviceId');
   if (!id) {
@@ -184,7 +202,6 @@ export default function App() {
   const [locationLogs, setLocationLogs] = useState<any[]>([]);
   const [selectedUserForTrail, setSelectedUserForTrail] = useState<string>('');
 
-  const lastPingTimeRef = useRef<number>(0);
   const selectedUserForTrailRef = useRef<string>('');
   selectedUserForTrailRef.current = selectedUserForTrail;
 
@@ -246,15 +263,13 @@ export default function App() {
        const optionsLow = { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 };
 const handleSuccess = async (pos: GeolocationPosition) => {
   const { latitude, longitude } = pos.coords;
+if (currentTeam) {
+  await supabase.from('teams').update({ lat: latitude, lng: longitude }).eq('id', currentTeam.id);
 
-  if (currentTeam) {
-    // 1. Update Supabase
-    await supabase.from('teams').update({ lat: latitude, lng: longitude }).eq('id', currentTeam.id);
-
-    // 2. Immediately update local state so the car moves on your map without delay
-    setTeams(prev => prev.map(t => t.id === currentTeam.id ? { ...t, lat: latitude, lng: longitude } : t));
-    setCurrentTeam(prev => prev ? { ...prev, lat: latitude, lng: longitude } : null);
-  }
+  // Add explicit type annotations (prev: any[]) and (prev: any)
+  setTeams((prev: any[]) => prev.map((t: any) => t.id === currentTeam.id ? { ...t, lat: latitude, lng: longitude } : t));
+  setCurrentTeam((prev: any) => prev ? { ...prev, lat: latitude, lng: longitude } : null);
+}
 
   await supabase.from('location_history').insert([{
     user_id: currentUser.id,
@@ -684,38 +699,61 @@ const handleSuccess = async (pos: GeolocationPosition) => {
         <AdminMapEvents />
 
         {/* Admin Selected User Trail (Connecting Polyline & Waypoint Dots) */}
-        {isAdmin && trailCoordinates.length > 0 && (
-          <>
-            {/* Connecting Line */}
-            <Polyline
-              positions={trailCoordinates}
-              pathOptions={{ color: '#ff4500', weight: 4, opacity: 0.9 }}
-            />
+        {/* Admin Selected User Trail (Gradient Line & Waypoint Dots) */}
+        {isAdmin && locationLogs.length > 0 && (() => {
+          const validLogs = locationLogs.filter(log => {
+            const lat = parseFloat(log.lat);
+            const lng = parseFloat(log.lng);
+            return !isNaN(lat) && !isNaN(lng);
+          });
 
-            {/* Waypoint Dots along the route */}
-            {locationLogs.map((log, index) => {
-              const lat = parseFloat(log.lat);
-              const lng = parseFloat(log.lng);
-              if (isNaN(lat) || isNaN(lng)) return null;
+          return (
+            <>
+              {/* Line Segments with Age-Based Gradient */}
+              {validLogs.map((log, index) => {
+                if (index === validLogs.length - 1) return null;
+                const nextLog = validLogs[index + 1];
 
-              return (
-                <CircleMarker
-                  key={log.id || index}
-                  center={[lat, lng]}
-                  radius={5}
-                  pathOptions={{ fillColor: '#ffd700', color: '#ff4500', weight: 2, fillOpacity: 1 }}
-                >
-                  <Popup>
-                    <div style={{ fontSize: '11px', textAlign: 'center' }}>
-                      <strong>Punt #{index + 1}</strong><br />
-                      {log.created_at ? new Date(log.created_at).toLocaleTimeString() : ''}
-                    </div>
-                  </Popup>
-                </CircleMarker>
-              );
-            })}
-          </>
-        )}
+                const p1: [number, number] = [parseFloat(log.lat), parseFloat(log.lng)];
+                const p2: [number, number] = [parseFloat(nextLog.lat), parseFloat(nextLog.lng)];
+                const segmentColor = getSegmentColor(nextLog.created_at);
+
+                return (
+                  <Polyline
+                    key={`segment-${log.id || index}`}
+                    positions={[p1, p2]}
+                    pathOptions={{ color: segmentColor, weight: 5, opacity: 0.9 }}
+                  />
+                );
+              })}
+
+              {/* Waypoint Dots with Matching Gradient Colors */}
+              {validLogs.map((log, index) => {
+                const lat = parseFloat(log.lat);
+                const lng = parseFloat(log.lng);
+                const dotColor = getSegmentColor(log.created_at);
+                const ageMinutes = Math.round((Date.now() - new Date(log.created_at).getTime()) / 60000);
+
+                return (
+                  <CircleMarker
+                    key={log.id || index}
+                    center={[lat, lng]}
+                    radius={5}
+                    pathOptions={{ fillColor: dotColor, color: '#111', weight: 1.5, fillOpacity: 1 }}
+                  >
+                    <Popup>
+                      <div style={{ fontSize: '11px', textAlign: 'center' }}>
+                        <strong>Punt #{index + 1}</strong><br />
+                        {log.created_at ? new Date(log.created_at).toLocaleTimeString() : ''}<br />
+                        <span style={{ color: '#aaa' }}>({ageMinutes}m geleden)</span>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
+            </>
+          );
+        })()}
 
         {/* Auto's op de kaart */}
         {teams.filter(t => t.lat && t.lng).map(team => {
