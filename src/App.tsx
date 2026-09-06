@@ -509,11 +509,6 @@ if (currentTeam) {
   const mapCenter: [number, number] = currentTeam?.lat ? [currentTeam.lat, currentTeam.lng] : [51.0543, 3.7174];
   const carPassengers = currentTeam ? users.filter(u => u.team_id === currentTeam.id) : [];
 
-  // Parse location logs to array of valid numeric coordinate pairs
-  const trailCoordinates: [number, number][] = locationLogs
-    .map(log => [parseFloat(log.lat), parseFloat(log.lng)] as [number, number])
-    .filter(coords => !isNaN(coords[0]) && !isNaN(coords[1]));
-
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative', background: '#0e0e0e' }}>
 
