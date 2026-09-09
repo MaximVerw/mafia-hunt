@@ -69,8 +69,6 @@ const createCarIcon = (color?: string, emoteUrl?: string, emoteUpdatedAt?: strin
 
     // Show emote if uploaded within the last 15 seconds
     if (ageMs < 15000) {
-      // Added an onclick handler, smooth scaling transitions, cursor pointer,
-      // and changed overflow to 'visible' so the chat bubble tails don't get clipped.
       emoteHtml = `
         <div
           onclick="event.stopPropagation(); this.style.transform = this.style.transform === 'scale(2.5) translateY(-10px)' ? 'none' : 'scale(2.5) translateY(-10px)'; this.style.zIndex = this.style.zIndex === '3000' ? '2000' : '3000';"
@@ -133,6 +131,22 @@ const createPortraitIcon = (avatarUrl?: string | null, borderColor: string = '#8
   iconAnchor: [22, 29],
 });
 
+const createDestinationIcon = () => L.divIcon({
+  html: `
+    <div style="
+      width: 44px; height: 44px;
+      background: #111; border: 3px solid #00ffff; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0px 4px 10px rgba(0,0,0,0.9);
+    ">
+      <span style="font-size: 22px;">🏁</span>
+    </div>
+  `,
+  className: '',
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+});
+
 // Geredde gijzelaar icon: Gold/Team badge met vinkje rechtsonder
 const createCapturedCheckIcon = (avatarUrl?: string | null, teamColor: string = '#28a745') => L.divIcon({
   html: `
@@ -191,25 +205,24 @@ const createCapturedCheckIcon = (avatarUrl?: string | null, teamColor: string = 
 });
 
 const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
+
 // Returns a color gradient from NOW (0m ago -> Bright Red/Orange) to 30m ago (Dodger Blue)
 const getSegmentColor = (timestamp?: string) => {
   if (!timestamp) return 'rgb(255, 69, 0)';
   const now = Date.now();
   const time = new Date(timestamp).getTime();
   const ageMs = Math.max(0, now - time);
-  const maxAgeMs = 30 * 60 * 1000; // 30 minutes in milliseconds
+  const maxAgeMs = 30 * 60 * 1000;
 
-  // Ratio: 0 = Now, 1 = 30+ minutes ago
   const ratio = Math.min(1, ageMs / maxAgeMs);
 
-  // Color 1 (Now): RGB(255, 69, 0) [Orange-Red]
-  // Color 2 (30m ago): RGB(30, 144, 255) [Dodger Blue]
   const r = Math.round(255 + (30 - 255) * ratio);
   const g = Math.round(69 + (144 - 69) * ratio);
   const b = Math.round(0 + (255 - 0) * ratio);
 
   return `rgb(${r}, ${g}, ${b})`;
 };
+
 const getOrCreateDeviceId = () => {
   let id = localStorage.getItem('deviceId');
   if (!id) {
@@ -224,6 +237,7 @@ export default function App() {
   const [missions, setMissions] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [destination, setDestination] = useState<any>(null);
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentTeam, setCurrentTeam] = useState<any>(null);
@@ -238,56 +252,25 @@ export default function App() {
   const [selectedTargetUserId, setSelectedTargetUserId] = useState('');
   const [isAdminUploading, setIsAdminUploading] = useState(false);
 
-  // Admin Route Visualizer State & Refs
   const [locationLogs, setLocationLogs] = useState<any[]>([]);
   const [selectedUserForTrail, setSelectedUserForTrail] = useState<string>('');
+  const [isUploadingEmote, setIsUploadingEmote] = useState(false);
 
   const selectedUserForTrailRef = useRef<string>('');
   selectedUserForTrailRef.current = selectedUserForTrail;
 
-const [isUploadingEmote, setIsUploadingEmote] = useState(false);
-
-const handleEmoteUpload = async (file: File) => {
-    if (!currentTeam) return;
-
-    // 30-second crew cooldown check
-    const teamEmoteAge = currentTeam.emote_updated_at ? Date.now() - new Date(currentTeam.emote_updated_at).getTime() : 999999;
-    if (teamEmoteAge < 30000) {
-      alert('De crew heeft zojuist al een emote gestuurd! Wacht 30 seconden.');
-      return;
-    }
-
-    setIsUploadingEmote(true);
-
-    const compressedFile = await compressImage(file);
-
-    // Note: use compressedFile instead of file below!
-    const fileName = `emote_${currentTeam.id}_${Math.random()}.${compressedFile.name.split('.').pop()}`;
-    const { error } = await supabase.storage.from('emotes').upload(fileName, compressedFile);
-
-    if (!error) {
-      const publicUrl = supabase.storage.from('emotes').getPublicUrl(fileName).data.publicUrl;
-      await supabase.from('teams').update({
-        emote_url: publicUrl,
-        emote_updated_at: new Date().toISOString()
-      }).eq('id', currentTeam.id);
-
-      fetchAllData();
-    } else {
-      alert('Fout bij uploaden emote.');
-    }
-    setIsUploadingEmote(false);
-  };
-
   const fetchAllData = async () => {
-    const [mRes, tRes, uRes] = await Promise.all([
+    const [mRes, tRes, uRes, dRes] = await Promise.all([
       supabase.from('missions').select('*'),
       supabase.from('teams').select('*'),
-      supabase.from('users').select('*')
+      supabase.from('users').select('*'),
+      supabase.from('destinations').select('*').eq('id', 'active').maybeSingle()
     ]);
+
     if (mRes.data) setMissions(mRes.data);
     if (tRes.data) setTeams(tRes.data);
     if (uRes.data) setUsers(uRes.data);
+    setDestination(dRes.data || null);
 
     const savedUserId = localStorage.getItem('userId');
     if (savedUserId && uRes.data) {
@@ -311,23 +294,16 @@ const handleEmoteUpload = async (file: File) => {
       }
     }
   };
-useEffect(() => {
-      // 1. Initial fetch on load
+
+  useEffect(() => {
+    fetchAllData();
+    const pollInterval = setInterval(() => {
       fetchAllData();
+    }, 5000);
 
-      // 2. Predictable, slow background polling (every 30 seconds)
-      // This guarantees your Egress will never spike, no matter how fast people drive.
-      const pollInterval = setInterval(() => {
-        fetchAllData();
-      }, 5000);
+    return () => clearInterval(pollInterval);
+  }, []);
 
-      // 3. Cleanup function
-      return () => {
-        clearInterval(pollInterval);
-      };
-    }, []);
-
-  // Refs for tracking active user, team, and last DB insert timestamp
   const currentUserRef = useRef<any>(currentUser);
   currentUserRef.current = currentUser;
 
@@ -336,7 +312,7 @@ useEffect(() => {
 
   const lastInsertTimeRef = useRef<number>(0);
 
-  // Fetch fresh, uncached location strictly every 15 seconds
+  // GPS position updates & history throttling
   useEffect(() => {
     if (isAdmin || !currentUser) return;
 
@@ -351,15 +327,12 @@ useEffect(() => {
         const { latitude, longitude } = pos.coords;
         const activeTeam = currentTeamRef.current;
 
-        // 1. Update active team location state & DB
         if (activeTeam) {
           await supabase.from('teams').update({ lat: latitude, lng: longitude }).eq('id', activeTeam.id);
-
           setTeams((prev: any[]) => prev.map((t: any) => t.id === activeTeam.id ? { ...t, lat: latitude, lng: longitude } : t));
           setCurrentTeam((prev: any) => prev ? { ...prev, lat: latitude, lng: longitude } : null);
         }
 
-        // 2. Throttle location_history inserts strictly to 15-second intervals
         const now = Date.now();
         if (now - lastInsertTimeRef.current >= 15000) {
           lastInsertTimeRef.current = now;
@@ -374,7 +347,7 @@ useEffect(() => {
       };
 
       const handleError = (err: GeolocationPositionError) => {
-        console.warn(`GPS High Accuracy Error (${err.code}): ${err.message}. Retrying with low accuracy...`);
+        console.warn(`GPS Error (${err.code}): ${err.message}. Retrying with low accuracy...`);
         navigator.geolocation.getCurrentPosition(
           handleSuccess,
           (fallbackErr) => console.error(`GPS Fallback Error (${fallbackErr.code}): ${fallbackErr.message}`),
@@ -385,15 +358,63 @@ useEffect(() => {
       navigator.geolocation.getCurrentPosition(handleSuccess, handleError, optionsHigh);
     };
 
-    // Immediate initial fetch
     fetchFreshLocation();
-
-    // Regular interval fetch
     const intervalId = setInterval(fetchFreshLocation, 15000);
 
     return () => clearInterval(intervalId);
-  }, [isAdmin, currentUser?.id]); // Scoped only to user identity changes
-  // Fetch full GPS trail history for selected user
+  }, [isAdmin, currentUser?.id]);
+
+  const handleEmoteUpload = async (file: File) => {
+    if (!currentTeam) return;
+
+    const teamEmoteAge = currentTeam.emote_updated_at ? Date.now() - new Date(currentTeam.emote_updated_at).getTime() : 999999;
+    if (teamEmoteAge < 30000) {
+      alert('De crew heeft zojuist al een emote gestuurd! Wacht 30 seconden.');
+      return;
+    }
+
+    setIsUploadingEmote(true);
+    const compressedFile = await compressImage(file);
+    const fileName = `emote_${currentTeam.id}_${Math.random()}.${compressedFile.name.split('.').pop()}`;
+    const { error } = await supabase.storage.from('emotes').upload(fileName, compressedFile);
+
+    if (!error) {
+      const publicUrl = supabase.storage.from('emotes').getPublicUrl(fileName).data.publicUrl;
+      await supabase.from('teams').update({
+        emote_url: publicUrl,
+        emote_updated_at: new Date().toISOString()
+      }).eq('id', currentTeam.id);
+
+      fetchAllData();
+    } else {
+      alert('Fout bij uploaden emote.');
+    }
+    setIsUploadingEmote(false);
+  };
+
+  const handleSetDestination = async () => {
+    if (!newTargetLoc) return;
+    setIsAdminUploading(true);
+
+    await supabase.from('destinations').upsert({
+      id: 'active',
+      title: 'Checkpoint',
+      lat: newTargetLoc.lat,
+      lng: newTargetLoc.lng,
+      created_at: new Date().toISOString()
+    });
+
+    setNewTargetLoc(null);
+    setIsAdminUploading(false);
+    fetchAllData();
+  };
+
+  const handleClearDestination = async () => {
+    if (!window.confirm("Huidige bestemming verwijderen?")) return;
+    await supabase.from('destinations').delete().eq('id', 'active');
+    fetchAllData();
+  };
+
   const fetchLocationLogs = async (userId: string) => {
     setSelectedUserForTrail(userId);
     if (!userId) {
@@ -411,9 +432,9 @@ useEffect(() => {
   };
 
   const handleAvatarUpload = async (userId: string, file: File) => {
-  const compressedFile = await compressImage(file);
-  const fileName = `avatar_${userId}_${Math.random()}.${compressedFile.name.split('.').pop()}`;
-  const { error } = await supabase.storage.from('hostages').upload(fileName, compressedFile);
+    const compressedFile = await compressImage(file);
+    const fileName = `avatar_${userId}_${Math.random()}.${compressedFile.name.split('.').pop()}`;
+    const { error } = await supabase.storage.from('hostages').upload(fileName, compressedFile);
     if (!error) {
       const publicUrl = supabase.storage.from('hostages').getPublicUrl(fileName).data.publicUrl;
       await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', userId);
@@ -443,7 +464,7 @@ useEffect(() => {
 
     let proofUrl = null;
     if (!error) {
-       proofUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
+      proofUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
     }
 
     await supabase.from('missions').update({
@@ -487,7 +508,10 @@ useEffect(() => {
       image_url: targetUser?.avatar_url || null
     }]);
 
-    setNewTargetLoc(null); setSelectedTargetUserId(''); setIsAdminUploading(false);
+    setNewTargetLoc(null);
+    setSelectedTargetUserId('');
+    setIsAdminUploading(false);
+    fetchAllData();
   };
 
   const handleApproveCapture = async (missionId: string) => {
@@ -627,7 +651,8 @@ useEffect(() => {
               <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#ffd700', letterSpacing: '0.5px' }}>{currentUser.name}</span>
               <span style={{ fontSize: '11px', color: '#aaa', fontStyle: 'italic' }}>{currentTeam ? `Capo: ${currentTeam.driver_name}` : 'Consigliere Weergave'}</span>
             </div>
-<label style={{ fontSize: '11px', background: '#262626', color: '#e0e0e0', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #444', fontWeight: 'bold' }}>
+
+            <label style={{ fontSize: '11px', background: '#262626', color: '#e0e0e0', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #444', fontWeight: 'bold' }}>
               📸 Maak Mugshot
               <input
                 type="file"
@@ -705,7 +730,6 @@ useEffect(() => {
       {isAdmin && (
         <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
 
-        {/* 📡 ADMIN-ONLY MANUAL REFRESH BUTTON */}
           <button
             onClick={() => {
               const btn = document.getElementById('admin-refresh-btn');
@@ -729,6 +753,15 @@ useEffect(() => {
           >
             📡 Forceer Radar Update
           </button>
+
+          {destination && (
+            <button
+              onClick={handleClearDestination}
+              style={{ padding: '8px 12px', background: '#8b0000', color: 'white', border: '1px solid #ff4d4d', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+            >
+              🗑️ Wis Actieve Bestemming
+            </button>
+          )}
 
           {/* Route Inspector */}
           <div style={{ background: '#141414', border: '1px solid #d4af37', padding: '10px 14px', borderRadius: '6px', color: '#fff', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
@@ -789,31 +822,47 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Admin Gijzelaar Toevoegen Overlay */}
+      {/* Admin Action Menu for Map Clicks */}
       {newTargetLoc && (
-        <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', background: '#161616', color: '#e0e0e0', border: '2px solid #8b0000', padding: '20px', borderRadius: '8px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '280px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)' }}>
-          <h3 style={{ margin: 0, color: '#d4af37', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '16px' }}>Plaats Gevangen Mafioso / Gijzelaar</h3>
-          <select value={selectedTargetUserId} onChange={(e) => setSelectedTargetUserId(e.target.value)} style={{ padding: '10px', background: '#222', color: '#e0e0e0', border: '1px solid #444', borderRadius: '4px' }}>
-            <option value="">Selecteer Gijzelaar...</option>
-            {users.map(u => (
-              <option key={u.id} value={u.id}>{u.name} {u.team_id ? '(Toegewezen)' : '(Niet toegewezen)'}</option>
-            ))}
-          </select>
+        <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', background: '#161616', color: '#e0e0e0', border: '2px solid #8b0000', padding: '20px', borderRadius: '8px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '300px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)' }}>
+          <h3 style={{ margin: 0, color: '#d4af37', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '16px', textAlign: 'center' }}>Locatie Actie Selecteren</h3>
 
-          {selectedTargetUserId && (() => {
-            const selectedUser = users.find(u => u.id === selectedTargetUserId);
-            return (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#222', borderRadius: '6px', border: '1px solid #333' }}>
-                <OvalAvatar src={selectedUser?.avatar_url} name={selectedUser?.name} />
-                <span style={{ fontSize: '12px', color: '#aaa' }}>{selectedUser?.avatar_url ? 'Mugshot aanwezig' : 'Geen mugshot in dossier'}</span>
-              </div>
-            );
-          })()}
+          <div style={{ borderBottom: '1px solid #333', paddingBottom: '10px' }}>
+            <label style={{ fontSize: '12px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>1. Checkpoint Instellen</label>
+            <button
+              onClick={handleSetDestination}
+              disabled={isAdminUploading}
+              style={{ width: '100%', padding: '10px', background: '#008b8b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              🏁 Stel In Als Checkpoint
+            </button>
+          </div>
 
-          <button onClick={handleCreateTarget} disabled={!selectedTargetUserId} style={{ padding: '10px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', textTransform: 'uppercase' }}>
-            {isAdminUploading ? 'Gijzelaar Plaatst...' : 'Start Reddingsmissie'}
-          </button>
-          <button onClick={() => setNewTargetLoc(null)} style={{ padding: '8px', background: '#333', color: '#aaa', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Annuleren</button>
+          <div>
+            <label style={{ fontSize: '12px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>2. Gijzelaar Plaatsen</label>
+            <select value={selectedTargetUserId} onChange={(e) => setSelectedTargetUserId(e.target.value)} style={{ width: '100%', padding: '8px', background: '#222', color: '#e0e0e0', border: '1px solid #444', borderRadius: '4px', marginBottom: '8px' }}>
+              <option value="">Selecteer Gijzelaar...</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.name} {u.team_id ? '(Toegewezen)' : '(Niet toegewezen)'}</option>
+              ))}
+            </select>
+
+            {selectedTargetUserId && (() => {
+              const selectedUser = users.find(u => u.id === selectedTargetUserId);
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', background: '#222', borderRadius: '6px', border: '1px solid #333', marginBottom: '8px' }}>
+                  <OvalAvatar src={selectedUser?.avatar_url} name={selectedUser?.name} />
+                  <span style={{ fontSize: '12px', color: '#aaa' }}>{selectedUser?.avatar_url ? 'Mugshot aanwezig' : 'Geen mugshot in dossier'}</span>
+                </div>
+              );
+            })()}
+
+            <button onClick={handleCreateTarget} disabled={!selectedTargetUserId || isAdminUploading} style={{ width: '100%', padding: '10px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: selectedTargetUserId ? 'pointer' : 'not-allowed', fontWeight: 'bold', textTransform: 'uppercase', opacity: selectedTargetUserId ? 1 : 0.5 }}>
+              {isAdminUploading ? 'Bezig...' : '⛓️ Start Reddingsmissie'}
+            </button>
+          </div>
+
+          <button onClick={() => setNewTargetLoc(null)} style={{ padding: '8px', background: '#333', color: '#aaa', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '4px' }}>Annuleren</button>
         </div>
       )}
 
@@ -843,8 +892,30 @@ useEffect(() => {
         />
         <AdminMapEvents />
 
+        {destination && (
+          <Marker
+            position={[destination.lat, destination.lng]}
+            icon={createDestinationIcon()}
+            zIndexOffset={500}
+          >
+            <Popup>
+              <div style={{ textAlign: 'center', minWidth: '150px' }}>
+                <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 CHECKPOINT</strong>
+                <p style={{ fontSize: '11px', color: '#aaa', margin: '4px 0 8px' }}>Rijd naar deze locatie!</p>
+                {isAdmin && (
+                  <button
+                    onClick={handleClearDestination}
+                    style={{ width: '100%', padding: '6px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                  >
+                    Wis Bestemming
+                  </button>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        )}
+
         {/* Admin Selected User Trail (Connecting Polyline & Waypoint Dots) */}
-        {/* Admin Selected User Trail (Gradient Line & Waypoint Dots) */}
         {isAdmin && locationLogs.length > 0 && (() => {
           const validLogs = locationLogs.filter(log => {
             const lat = parseFloat(log.lat);
@@ -854,7 +925,6 @@ useEffect(() => {
 
           return (
             <>
-              {/* Line Segments with Age-Based Gradient */}
               {validLogs.map((log, index) => {
                 if (index === validLogs.length - 1) return null;
                 const nextLog = validLogs[index + 1];
@@ -872,7 +942,6 @@ useEffect(() => {
                 );
               })}
 
-              {/* Waypoint Dots with Matching Gradient Colors */}
               {validLogs.map((log, index) => {
                 const lat = parseFloat(log.lat);
                 const lng = parseFloat(log.lng);
@@ -906,12 +975,13 @@ useEffect(() => {
           const passengers = users.filter(u => u.team_id === team.id);
 
           return (
-<Marker
-  key={team.id}
-  position={[team.lat, team.lng]}
-  icon={createCarIcon(team.color, team.emote_url, team.emote_updated_at)}
-  zIndexOffset={isMyTeam ? 1000 : 0}
->              <Popup>
+            <Marker
+              key={team.id}
+              position={[team.lat, team.lng]}
+              icon={createCarIcon(team.color, team.emote_url, team.emote_updated_at)}
+              zIndexOffset={isMyTeam ? 1000 : 0}
+            >
+              <Popup>
                 <div style={{ textAlign: 'center', minWidth: '170px' }}>
                   <strong style={{ fontSize: '15px', color: '#ffd700' }}>Capo {team.driver_name}'s Macchina</strong>
                   {isMyTeam && <span style={{ color: '#28a745', fontWeight: 'bold', display: 'block', fontSize: '11px', marginTop: '2px' }}>(Jouw Crew)</span>}
