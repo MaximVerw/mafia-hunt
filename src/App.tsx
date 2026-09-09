@@ -678,6 +678,7 @@ const handleEmoteUpload = async (file: File) => {
                   <input
                     type="file"
                     accept="image/*"
+                    capture="user"
                     style={{ display: 'none' }}
                     disabled={!canUploadEmote || isUploadingEmote}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -814,7 +815,7 @@ const handleEmoteUpload = async (file: File) => {
             Herover Mafioso: {captureMission.title}
           </h2>
           <p style={{ color: '#aaa', fontStyle: 'italic', marginBottom: '20px' }}>Lever fotobewijs van de redding voor de Don...</p>
-          <input type="file" accept="image/*" capture="environment" onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProofFile(e.target.files ? e.target.files[0] : null)} style={{ margin: '15px 0', color: 'white' }} />
+          <input type="file" accept="image/*" capture="user" onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProofFile(e.target.files ? e.target.files[0] : null)} style={{ margin: '15px 0', color: 'white' }} />
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={handlePlayerCapture} disabled={isPlayerUploading || !proofFile} style={{ padding: '12px 24px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer' }}>
               {isPlayerUploading ? 'Bewijs Versturen...' : 'Bevestig Reddingsbewijs'}
