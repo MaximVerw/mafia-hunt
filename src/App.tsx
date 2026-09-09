@@ -311,37 +311,21 @@ const handleEmoteUpload = async (file: File) => {
       }
     }
   };
-
-  useEffect(() => {
+useEffect(() => {
       // 1. Initial fetch on load
       fetchAllData();
 
-      // 2. Create a unique channel name to bypass React Strict Mode bugs
-      const channelName = `game-updates-${Math.random().toString(36).substring(7)}`;
-
-      const channel = supabase.channel(channelName)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'missions' }, (payload) => {
-          console.log('🚨 MISSIE UPDATE IN BROWSER:', payload);
-          fetchAllData();
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, (payload) => {
-          console.log('🚘 CREW UPDATE IN BROWSER:', payload);
-          fetchAllData();
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
-          console.log('👤 MAFIOSO UPDATE IN BROWSER:', payload);
-          fetchAllData();
-        })
-        .subscribe((status, err) => {
-          console.log('📡 Realtime Status [${channelName}]:', status);
-          if (err) console.error('Realtime Error:', err);
-        });
+      // 2. Predictable, slow background polling (every 30 seconds)
+      // This guarantees your Egress will never spike, no matter how fast people drive.
+      const pollInterval = setInterval(() => {
+        fetchAllData();
+      }, 5000);
 
       // 3. Cleanup function
       return () => {
-        supabase.removeChannel(channel);
+        clearInterval(pollInterval);
       };
-    }, []); // <-- Make sure this dependency array is empty!
+    }, []);
 
   // Refs for tracking active user, team, and last DB insert timestamp
   const currentUserRef = useRef<any>(currentUser);
@@ -720,6 +704,31 @@ const handleEmoteUpload = async (file: File) => {
       {/* Admin Panel */}
       {isAdmin && (
         <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+
+        {/* 📡 ADMIN-ONLY MANUAL REFRESH BUTTON */}
+          <button
+            onClick={() => {
+              const btn = document.getElementById('admin-refresh-btn');
+              if (btn) btn.innerText = '⏳ Radar scannen...';
+              fetchAllData().then(() => {
+                if (btn) btn.innerText = '📡 Forceer Radar Update';
+              });
+            }}
+            id="admin-refresh-btn"
+            style={{
+              padding: '10px 14px',
+              background: '#2c3e50',
+              color: '#00ffff',
+              cursor: 'pointer',
+              border: '1px solid #00ffff',
+              fontWeight: 'bold',
+              borderRadius: '4px',
+              letterSpacing: '1px',
+              boxShadow: '0 4px 10px rgba(0,0,0,0.8)'
+            }}
+          >
+            📡 Forceer Radar Update
+          </button>
 
           {/* Route Inspector */}
           <div style={{ background: '#141414', border: '1px solid #d4af37', padding: '10px 14px', borderRadius: '6px', color: '#fff', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
