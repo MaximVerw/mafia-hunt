@@ -9,6 +9,25 @@ import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 const DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25, 41], iconAnchor: [12, 41] });
 L.Marker.prototype.options.icon = DefaultIcon;
 
+import imageCompression from 'browser-image-compression';
+
+// Helper function to crush image sizes down to kilobytes
+const compressImage = async (imageFile: File) => {
+  const options = {
+    maxSizeMB: 0.05, // Target max size: ~50 KB
+    maxWidthOrHeight: 600, // Resize so the longest side is max 600px
+    useWebWorker: true,
+  };
+
+  try {
+    const compressedFile = await imageCompression(imageFile, options);
+    return compressedFile;
+  } catch (error) {
+    console.error("Fout bij comprimeren:", error);
+    return imageFile; // Fallback to the original file if compression fails
+  }
+};
+
 // Interface voor OvalAvatar props
 interface OvalAvatarProps {
   src?: string | null;
@@ -41,23 +60,44 @@ const OvalAvatar = ({ src, name, width = 40, height = 52, border = '2px solid #d
   </div>
 );
 
-// Mafia Car icon generator
-const createCarIcon = (color?: string) => L.divIcon({
-  html: `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.9)); display: block;">
-      <path
-        fill="${color || '#b22222'}"
-        stroke="#ffd700"
-        stroke-width="1.2"
-        stroke-linejoin="round"
-        d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.04 3H5.81l1.04-3zM19 17c-.83 0-1.5-.67-1.5-1.5S18.17 14 19 14s1.5.67 1.5 1.5S19.83 17 19 17zm-14 0c-.83 0-1.5-.67-1.5-1.5S4.17 14 5 14s1.5.67 1.5 1.5S5.83 17 5 17z"
-      />
-    </svg>
-  `,
-  className: '',
-  iconSize: [38, 38],
-  iconAnchor: [19, 19],
-});
+// Mafia Car icon generator with Emote support
+const createCarIcon = (color?: string, emoteUrl?: string, emoteUpdatedAt?: string) => {
+  let emoteHtml = '';
+
+  if (emoteUrl && emoteUpdatedAt) {
+    const ageMs = Date.now() - new Date(emoteUpdatedAt).getTime();
+
+    // Show emote if uploaded within the last 15 seconds
+    if (ageMs < 15000) {
+      // Added an onclick handler, smooth scaling transitions, cursor pointer,
+      // and changed overflow to 'visible' so the chat bubble tails don't get clipped.
+      emoteHtml = `
+        <div
+          onclick="event.stopPropagation(); this.style.transform = this.style.transform === 'scale(2.5) translateY(-10px)' ? 'none' : 'scale(2.5) translateY(-10px)'; this.style.zIndex = this.style.zIndex === '3000' ? '2000' : '3000';"
+          style="position: absolute; top: -65px; left: -10px; width: 60px; height: 60px; background: #111; border-radius: 8px; border: 2px solid #d4af37; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center; overflow: visible; animation: popIn 0.3s ease-out; cursor: pointer; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), z-index 0.3s ease; transform-origin: bottom center;"
+        >
+          <img src="${emoteUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;" />
+          <div style="position: absolute; bottom: -8px; left: 24px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid #d4af37;"></div>
+          <div style="position: absolute; bottom: -5px; left: 26px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 6px solid #111;"></div>
+        </div>
+      `;
+    }
+  }
+
+  return L.divIcon({
+    html: `
+      <div style="position: relative;">
+        ${emoteHtml}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.9)); display: block;">
+          <path fill="${color || '#b22222'}" stroke="#ffd700" stroke-width="1.2" stroke-linejoin="round" d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.04 3H5.81l1.04-3zM19 17c-.83 0-1.5-.67-1.5-1.5S18.17 14 19 14s1.5.67 1.5 1.5S19.83 17 19 17zm-14 0c-.83 0-1.5-.67-1.5-1.5S4.17 14 5 14s1.5.67 1.5 1.5S5.83 17 5 17z"/>
+        </svg>
+      </div>
+    `,
+    className: '',
+    iconSize: [38, 38],
+    iconAnchor: [19, 19],
+  });
+};
 
 // Portrait icon voor gijzelaars/gevangen mafiosi op de kaart
 const createPortraitIcon = (avatarUrl?: string | null, borderColor: string = '#8b0000') => L.divIcon({
@@ -204,6 +244,40 @@ export default function App() {
 
   const selectedUserForTrailRef = useRef<string>('');
   selectedUserForTrailRef.current = selectedUserForTrail;
+
+const [isUploadingEmote, setIsUploadingEmote] = useState(false);
+
+const handleEmoteUpload = async (file: File) => {
+    if (!currentTeam) return;
+
+    // 30-second crew cooldown check
+    const teamEmoteAge = currentTeam.emote_updated_at ? Date.now() - new Date(currentTeam.emote_updated_at).getTime() : 999999;
+    if (teamEmoteAge < 30000) {
+      alert('De crew heeft zojuist al een emote gestuurd! Wacht 30 seconden.');
+      return;
+    }
+
+    setIsUploadingEmote(true);
+
+    const compressedFile = await compressImage(file);
+
+    // Note: use compressedFile instead of file below!
+    const fileName = `emote_${currentTeam.id}_${Math.random()}.${compressedFile.name.split('.').pop()}`;
+    const { error } = await supabase.storage.from('emotes').upload(fileName, compressedFile);
+
+    if (!error) {
+      const publicUrl = supabase.storage.from('emotes').getPublicUrl(fileName).data.publicUrl;
+      await supabase.from('teams').update({
+        emote_url: publicUrl,
+        emote_updated_at: new Date().toISOString()
+      }).eq('id', currentTeam.id);
+
+      fetchAllData();
+    } else {
+      alert('Fout bij uploaden emote.');
+    }
+    setIsUploadingEmote(false);
+  };
 
   const fetchAllData = async () => {
     const [mRes, tRes, uRes] = await Promise.all([
@@ -353,8 +427,9 @@ export default function App() {
   };
 
   const handleAvatarUpload = async (userId: string, file: File) => {
-    const fileName = `avatar_${userId}_${Math.random()}.${file.name.split('.').pop()}`;
-    const { error } = await supabase.storage.from('hostages').upload(fileName, file);
+  const compressedFile = await compressImage(file);
+  const fileName = `avatar_${userId}_${Math.random()}.${compressedFile.name.split('.').pop()}`;
+  const { error } = await supabase.storage.from('hostages').upload(fileName, compressedFile);
     if (!error) {
       const publicUrl = supabase.storage.from('hostages').getPublicUrl(fileName).data.publicUrl;
       await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', userId);
@@ -378,8 +453,9 @@ export default function App() {
     if (!captureMission || !proofFile || !currentTeam) return;
     setIsPlayerUploading(true);
 
-    const fileName = `proof_${Math.random()}.${proofFile.name.split('.').pop()}`;
-    const { error } = await supabase.storage.from('proofs').upload(fileName, proofFile);
+    const compressedFile = await compressImage(proofFile);
+    const fileName = `proof_${Math.random()}.${compressedFile.name.split('.').pop()}`;
+    const { error } = await supabase.storage.from('proofs').upload(fileName, compressedFile);
 
     let proofUrl = null;
     if (!error) {
@@ -567,8 +643,7 @@ export default function App() {
               <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#ffd700', letterSpacing: '0.5px' }}>{currentUser.name}</span>
               <span style={{ fontSize: '11px', color: '#aaa', fontStyle: 'italic' }}>{currentTeam ? `Capo: ${currentTeam.driver_name}` : 'Consigliere Weergave'}</span>
             </div>
-
-            <label style={{ fontSize: '11px', background: '#262626', color: '#e0e0e0', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #444', fontWeight: 'bold' }}>
+<label style={{ fontSize: '11px', background: '#262626', color: '#e0e0e0', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #444', fontWeight: 'bold' }}>
               📸 Maak Mugshot
               <input
                 type="file"
@@ -582,6 +657,36 @@ export default function App() {
                 }}
               />
             </label>
+
+            {currentTeam && (() => {
+              const teamEmoteAge = currentTeam.emote_updated_at ? Date.now() - new Date(currentTeam.emote_updated_at).getTime() : 999999;
+              const canUploadEmote = teamEmoteAge >= 30000;
+
+              return (
+                <label style={{
+                  fontSize: '11px',
+                  background: canUploadEmote ? '#1e90ff' : '#555',
+                  color: 'white',
+                  padding: '6px 10px',
+                  borderRadius: '4px',
+                  cursor: canUploadEmote && !isUploadingEmote ? 'pointer' : 'not-allowed',
+                  border: '1px solid #d4af37',
+                  fontWeight: 'bold',
+                  opacity: canUploadEmote ? 1 : 0.6
+                }}>
+                  {isUploadingEmote ? '⏳ Bezig...' : canUploadEmote ? '💭 Stuur Emote' : '⏳ Cooldown (30s)'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    disabled={!canUploadEmote || isUploadingEmote}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      if (e.target.files && e.target.files[0]) handleEmoteUpload(e.target.files[0]);
+                    }}
+                  />
+                </label>
+              );
+            })()}
 
             {currentTeam && (
               <button
@@ -791,8 +896,12 @@ export default function App() {
           const passengers = users.filter(u => u.team_id === team.id);
 
           return (
-            <Marker key={team.id} position={[team.lat, team.lng]} icon={createCarIcon(team.color)} zIndexOffset={isMyTeam ? 1000 : 0}>
-              <Popup>
+<Marker
+  key={team.id}
+  position={[team.lat, team.lng]}
+  icon={createCarIcon(team.color, team.emote_url, team.emote_updated_at)}
+  zIndexOffset={isMyTeam ? 1000 : 0}
+>              <Popup>
                 <div style={{ textAlign: 'center', minWidth: '170px' }}>
                   <strong style={{ fontSize: '15px', color: '#ffd700' }}>Capo {team.driver_name}'s Macchina</strong>
                   {isMyTeam && <span style={{ color: '#28a745', fontWeight: 'bold', display: 'block', fontSize: '11px', marginTop: '2px' }}>(Jouw Crew)</span>}
