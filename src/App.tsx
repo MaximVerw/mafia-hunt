@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMapEvents, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { supabase } from './supabase';
@@ -10,7 +10,6 @@ const DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25
 L.Marker.prototype.options.icon = DefaultIcon;
 
 import imageCompression from 'browser-image-compression';
-
 // Helper function to crush image sizes down to kilobytes
 const compressImage = async (imageFile: File) => {
   const options = {
@@ -238,6 +237,7 @@ export default function App() {
   const [teams, setTeams] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [destination, setDestination] = useState<any>(null);
+  const [draftDestination, setDraftDestination] = useState<{real_lat: number, real_lng: number, display_lat: number, display_lng: number, radius_meters: number} | null>(null);
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentTeam, setCurrentTeam] = useState<any>(null);
@@ -264,8 +264,8 @@ export default function App() {
       supabase.from('missions').select('*'),
       supabase.from('teams').select('*'),
       supabase.from('users').select('*'),
-      supabase.from('destinations').select('*').eq('id', 'active').maybeSingle()
-    ]);
+      supabase.from(isAdmin ? 'destinations' : 'player_destinations').select('*').eq('id', 'active').maybeSingle()
+          ]);
 
     if (mRes.data) setMissions(mRes.data);
     if (tRes.data) setTeams(tRes.data);
@@ -392,22 +392,64 @@ export default function App() {
     setIsUploadingEmote(false);
   };
 
-  const handleSetDestination = async () => {
+const handleSetDestination = () => {
     if (!newTargetLoc) return;
+    // Zet het in draft, publiceerd nog niets naar de database!
+    setDraftDestination({
+      real_lat: newTargetLoc.lat,
+      real_lng: newTargetLoc.lng,
+      display_lat: newTargetLoc.lat + 0.002, // Standaard kleine offset
+      display_lng: newTargetLoc.lng + 0.002,
+      radius_meters: 500
+    });
+    setNewTargetLoc(null); // Sluit het popup menu
+  };
+
+  const handlePublishDestination = async () => {
+    if (!draftDestination) return;
     setIsAdminUploading(true);
 
     await supabase.from('destinations').upsert({
       id: 'active',
       title: 'Checkpoint',
-      lat: newTargetLoc.lat,
-      lng: newTargetLoc.lng,
+      real_lat: draftDestination.real_lat,
+      real_lng: draftDestination.real_lng,
+      display_lat: draftDestination.display_lat,
+      display_lng: draftDestination.display_lng,
+      radius_meters: draftDestination.radius_meters,
+      is_revealed: false,
       created_at: new Date().toISOString()
     });
 
-    setNewTargetLoc(null);
+    setDraftDestination(null);
     setIsAdminUploading(false);
     fetchAllData();
   };
+
+  // Berekent de coördinaat precies aan de rechterkant (Oost) van de cirkel
+    const calculateEdgePosition = (lat: number, lng: number, radiusMeters: number): [number, number] => {
+      const dLng = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180));
+      return [lat, lng + dLng];
+    };
+
+    // Zet een reeds gepubliceerde bestemming terug in conceptmodus
+    const handleEditDestination = () => {
+      if (!destination) return;
+      setDraftDestination({
+        real_lat: destination.real_lat,
+        real_lng: destination.real_lng,
+        display_lat: destination.display_lat,
+        display_lng: destination.display_lng,
+        radius_meters: destination.radius_meters
+      });
+    };
+
+// Add this new function right underneath it:
+const handleRevealDestination = async () => {
+  if (!window.confirm("Exacte locatie onthullen aan alle spelers?")) return;
+  await supabase.from('destinations').update({ is_revealed: true }).eq('id', 'active');
+  fetchAllData();
+};
 
   const handleClearDestination = async () => {
     if (!window.confirm("Huidige bestemming verwijderen?")) return;
@@ -866,6 +908,22 @@ export default function App() {
         </div>
       )}
 
+      {/* Admin Draft Publish Menu */}
+            {isAdmin && draftDestination && (
+              <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', gap: '15px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', alignItems: 'center' }}>
+                <div style={{ color: '#ffd700', fontSize: '13px', fontWeight: 'bold' }}>
+                  🛠️ Checkpoint Conceptmodus<br/>
+                  <span style={{ color: '#aaa', fontSize: '11px', fontWeight: 'normal' }}>Pas locatie en straal aan op de kaart.</span>
+                </div>
+                <button onClick={handlePublishDestination} disabled={isAdminUploading} style={{ padding: '10px 15px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  {isAdminUploading ? 'Bezig...' : '✅ Publiceer Checkpoint'}
+                </button>
+                <button onClick={() => setDraftDestination(null)} style={{ padding: '10px 15px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  ❌ Annuleren
+                </button>
+              </div>
+            )}
+
       {/* Speler Reddings-overlay */}
       {captureMission && (
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.92)', zIndex: 2000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
@@ -892,28 +950,128 @@ export default function App() {
         />
         <AdminMapEvents />
 
-        {destination && (
-          <Marker
-            position={[destination.lat, destination.lng]}
-            icon={createDestinationIcon()}
-            zIndexOffset={500}
-          >
-            <Popup>
-              <div style={{ textAlign: 'center', minWidth: '150px' }}>
-                <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 CHECKPOINT</strong>
-                <p style={{ fontSize: '11px', color: '#aaa', margin: '4px 0 8px' }}>Rijd naar deze locatie!</p>
-                {isAdmin && (
-                  <button
-                    onClick={handleClearDestination}
-                    style={{ width: '100%', padding: '6px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    Wis Bestemming
-                  </button>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        )}
+       {/* --- LIVE DESTINATION --- */}
+              {/* --- LIVE DESTINATION --- */}
+                      {destination && !draftDestination && (
+                        <>
+                          {/* PLAYER VIEW */}
+                          {!isAdmin && (
+                            destination.is_revealed ? (
+                              <Marker position={[destination.lat, destination.lng]} icon={createDestinationIcon()} zIndexOffset={500}>
+                                <Popup>
+                                  <div style={{ textAlign: 'center', minWidth: '150px' }}>
+                                    <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 CHECKPOINT</strong>
+                                    <p style={{ fontSize: '11px', color: '#aaa', margin: '4px 0 8px' }}>Rijd naar deze exacte locatie!</p>
+                                  </div>
+                                </Popup>
+                              </Marker>
+                            ) : (
+                              <Circle
+                                center={[destination.lat, destination.lng]}
+                                radius={destination.radius_meters || 500}
+                                pathOptions={{ fillColor: 'rgba(255, 0, 0, 0.2)', color: '#ff4d4d', weight: 2 }}
+                              >
+                                <Popup>
+                                  <div style={{ textAlign: 'center' }}>
+                                    <strong style={{ color: '#ff4d4d' }}>❓ Zoekgebied</strong>
+                                    <p style={{ fontSize: '11px', color: '#aaa' }}>De bestemming ligt ergens in deze zone.</p>
+                                  </div>
+                                </Popup>
+                              </Circle>
+                            )
+                          )}
+
+                          {/* ADMIN VIEW FOR LIVE DESTINATION */}
+                          {isAdmin && (
+                            <>
+                              {/* Echte locatie Marker */}
+                              <Marker position={[destination.real_lat, destination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500}>
+                                <Popup>
+                                  <div style={{ textAlign: 'center', minWidth: '150px' }}>
+                                    <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 ECHTE CHECKPOINT</strong>
+                                    {!destination.is_revealed && (
+                                      <button onClick={handleRevealDestination} style={{ width: '100%', margin: '6px 0', padding: '6px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                        👀 Onthul aan Spelers
+                                      </button>
+                                    )}
+                                  </div>
+                                </Popup>
+                              </Marker>
+
+                              {/* Gepubliceerde Zone (Niet direct sleepbaar, vereist Edit modus) */}
+                              {!destination.is_revealed && (
+                                <>
+                                  <Marker position={[destination.display_lat, destination.display_lng]} zIndexOffset={400}>
+                                    <Popup>
+                                      <div style={{ textAlign: 'center', minWidth: '140px' }}>
+                                        <strong style={{ color: '#111', display: 'block', marginBottom: '8px' }}>⚙️ Huidige Zoekzone</strong>
+                                        <button onClick={handleEditDestination} style={{ width: '100%', padding: '6px', background: '#d4af37', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                          ✏️ Bewerk Zone
+                                        </button>
+                                        <span style={{ fontSize: '11px', color: '#666', fontWeight: 'bold', display: 'block', marginTop: '6px' }}>Straal: {Math.round(destination.radius_meters)}m</span>
+                                      </div>
+                                    </Popup>
+                                  </Marker>
+                                  <Circle center={[destination.display_lat, destination.display_lng]} radius={destination.radius_meters || 500} pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.1)', color: '#00ffff', weight: 2, dashArray: '5, 5' }} />
+                                </>
+                              )}
+                            </>
+                          )}
+                        </>
+                      )}
+
+                      {/* --- ADMIN DRAFT VIEW --- */}
+                      {isAdmin && draftDestination && (
+                        <>
+                          {/* Draft Real Pin (Vervagend) */}
+                          <Marker position={[draftDestination.real_lat, draftDestination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500} opacity={0.6} />
+
+                          {/* Draft Draggable Center Pin */}
+                          <Marker
+                            draggable={true}
+                            eventHandlers={{
+                              drag: (e) => setDraftDestination({ ...draftDestination, display_lat: e.target.getLatLng().lat, display_lng: e.target.getLatLng().lng })
+                            }}
+                            position={[draftDestination.display_lat, draftDestination.display_lng]}
+                            zIndexOffset={400}
+                          >
+                            <Popup>
+                              <div style={{ textAlign: 'center', minWidth: '120px' }}>
+                                <strong style={{ color: '#111', display: 'block' }}>🛠️ Midden</strong>
+                                <span style={{ fontSize: '11px', color: '#666' }}>Sleep om te verplaatsen</span>
+                              </div>
+                            </Popup>
+                          </Marker>
+
+                          {/* Draft Draggable Resize Pin (Rand van de cirkel) */}
+                          <Marker
+                            draggable={true}
+                            eventHandlers={{
+                              drag: (e) => {
+                                const centerLatLng = L.latLng(draftDestination.display_lat, draftDestination.display_lng);
+                                const newRadius = centerLatLng.distanceTo(e.target.getLatLng());
+                                setDraftDestination({ ...draftDestination, radius_meters: Math.max(50, newRadius) });
+                              }
+                            }}
+                            position={calculateEdgePosition(draftDestination.display_lat, draftDestination.display_lng, draftDestination.radius_meters)}
+                            zIndexOffset={401}
+                          >
+                            <Popup>
+                              <div style={{ textAlign: 'center', minWidth: '120px' }}>
+                                <strong style={{ color: '#111', display: 'block' }}>📏 Grootte</strong>
+                                <span style={{ fontSize: '11px', color: '#666' }}>Sleep om te schalen<br/>({Math.round(draftDestination.radius_meters)}m)</span>
+                              </div>
+                            </Popup>
+                          </Marker>
+
+                          {/* Draft Circle */}
+                          <Circle
+                            center={[draftDestination.display_lat, draftDestination.display_lng]}
+                            radius={draftDestination.radius_meters}
+                            pathOptions={{ fillColor: 'rgba(255, 165, 0, 0.2)', color: 'orange', weight: 2, dashArray: '5, 5' }}
+                          />
+                        </>
+                      )}
 
         {/* Admin Selected User Trail (Connecting Polyline & Waypoint Dots) */}
         {isAdmin && locationLogs.length > 0 && (() => {
