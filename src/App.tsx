@@ -14,8 +14,8 @@ import imageCompression from 'browser-image-compression';
 // Helper function to crush image sizes down to kilobytes
 const compressImage = async (imageFile: File) => {
   const options = {
-    maxSizeMB: 0.05, // Target max size: ~50 KB
-    maxWidthOrHeight: 600, // Resize so the longest side is max 600px
+    maxSizeMB: 0.01,
+    maxWidthOrHeight: 400,
     useWebWorker: true,
   };
 
