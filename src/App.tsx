@@ -231,7 +231,125 @@ const getOrCreateDeviceId = () => {
   return id;
 };
 const myDeviceId = getOrCreateDeviceId();
+function DestinationEdgePointer({ destination, draftDestination, isAdmin }: { destination: any, draftDestination: any, isAdmin: boolean }) {
+  const map = useMap();
+  const [arrowData, setArrowData] = useState<{ x: number, y: number, angle: number } | null>(null);
 
+  let targetLat: number | null = null;
+  let targetLng: number | null = null;
+
+  if (isAdmin && draftDestination) {
+    targetLat = draftDestination.display_lat;
+    targetLng = draftDestination.display_lng;
+  } else if (destination) {
+    if (isAdmin) {
+      targetLat = destination.is_revealed ? destination.real_lat : destination.display_lat;
+      targetLng = destination.is_revealed ? destination.real_lng : destination.display_lng;
+    } else {
+      targetLat = destination.lat;
+      targetLng = destination.lng;
+    }
+  }
+
+  useEffect(() => {
+    if (targetLat === null || targetLng === null) {
+      setArrowData(null);
+      return;
+    }
+
+    const updateArrow = () => {
+      const targetPoint = map.latLngToContainerPoint([targetLat!, targetLng!]);
+      const size = map.getSize();
+      const width = size.x;
+      const height = size.y;
+
+      const padding = 50;
+      const isInside =
+        targetPoint.x >= padding &&
+        targetPoint.x <= width - padding &&
+        targetPoint.y >= padding &&
+        targetPoint.y <= height - padding;
+
+      if (isInside) {
+        setArrowData(null);
+        return;
+      }
+
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const dx = targetPoint.x - centerX;
+      const dy = targetPoint.y - centerY;
+      const angle = Math.atan2(dy, dx);
+
+      const boundX = width / 2 - padding;
+      const boundY = height / 2 - padding;
+
+      let x = centerX;
+      let y = centerY;
+      const slope = dx !== 0 ? dy / dx : 0;
+
+      if (Math.abs(dx) * boundY > Math.abs(dy) * boundX) {
+        x = dx > 0 ? width - padding : padding;
+        y = centerY + (x - centerX) * slope;
+      } else {
+        y = dy > 0 ? height - padding : padding;
+        x = centerX + (slope !== 0 ? (y - centerY) / slope : 0);
+      }
+
+      const angleDeg = (angle * 180) / Math.PI;
+      setArrowData({ x, y, angle: angleDeg });
+    };
+
+    updateArrow();
+
+    map.on('move', updateArrow);
+    map.on('zoom', updateArrow);
+    map.on('resize', updateArrow);
+
+    return () => {
+      map.off('move', updateArrow);
+      map.off('zoom', updateArrow);
+      map.off('resize', updateArrow);
+    };
+  }, [targetLat, targetLng, map]);
+
+  if (!arrowData || targetLat === null || targetLng === null) return null;
+
+  return (
+    <div
+      onClick={() => map.setView([targetLat!, targetLng!], Math.max(map.getZoom(), 15), { animate: true })}
+      style={{
+        position: 'absolute',
+        left: `${arrowData.x}px`,
+        top: `${arrowData.y}px`,
+        transform: 'translate(-50%, -50%)',
+        zIndex: 1500,
+        cursor: 'pointer',
+        background: '#161616',
+        border: '2px solid #00ffff',
+        borderRadius: '50%',
+        width: '42px',
+        height: '42px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 4px 15px rgba(0,0,0,0.9)'
+      }}
+      title="Klik om naar de bestemming te pannen"
+    >
+      <div style={{
+        transform: `rotate(${arrowData.angle}deg)`,
+        fontSize: '18px',
+        color: '#00ffff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        ➡️
+      </div>
+    </div>
+  );
+}
 export default function App() {
   const [missions, setMissions] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
@@ -942,13 +1060,19 @@ const handleRevealDestination = async () => {
       )}
 
       {/* Map Container */}
-      <MapContainer center={mapCenter} zoom={14} style={{ height: '100%', width: '100%', zIndex: 1 }}>
-        <TileLayer
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-          attribution="Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
-          maxZoom={16}
-        />
-        <AdminMapEvents />
+        <MapContainer center={mapCenter} zoom={14} style={{ height: '100%', width: '100%', zIndex: 1 }}>
+          <TileLayer
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+            attribution="Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+            maxZoom={16}
+          />
+          <AdminMapEvents />
+
+          {/* --- EDGE ARROW INDICATOR --- */}
+          <DestinationEdgePointer destination={destination} draftDestination={draftDestination} isAdmin={isAdmin} />
+
+          {/* Rest of your map layers... */}
+        </MapContainer>
 
        {/* --- LIVE DESTINATION --- */}
               {/* --- LIVE DESTINATION --- */}
@@ -984,7 +1108,6 @@ const handleRevealDestination = async () => {
                           {/* ADMIN VIEW FOR LIVE DESTINATION */}
                           {isAdmin && (
                             <>
-                              {/* Echte locatie Marker */}
                               <Marker position={[destination.real_lat, destination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500}>
                                 <Popup>
                                   <div style={{ textAlign: 'center', minWidth: '150px' }}>
@@ -994,6 +1117,9 @@ const handleRevealDestination = async () => {
                                         👀 Onthul aan Spelers
                                       </button>
                                     )}
+                                    <button onClick={handleClearDestination} style={{ width: '100%', marginTop: '4px', padding: '6px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                      🗑️ Wis Bestemming
+                                    </button>
                                   </div>
                                 </Popup>
                               </Marker>
