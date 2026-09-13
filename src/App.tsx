@@ -680,8 +680,19 @@ export default function App() {
         // Cubic ease-out voor natuurlijke remweg
         const ease = 1 - Math.pow(1 - progress, 3);
 
-        const currentLat = start[0] + (target[0] - start[0]) * ease;
-        const currentLng = start + (target - start) * ease;
+        // 1. Haal de losse getallen uit de arrays
+        const startLat = posRef.current[0];
+        const startLng = posRef.current[1];
+
+        // (ervan uitgaande dat je prop 'position' heet in deze component)
+        const targetLat = position[0];
+        const targetLng = position[1];
+
+        // 2. Reken apart met de losse getallen (Dit lost de TypeScript error op!)
+        const currentLat = startLat + (targetLat - startLat) * ease;
+        const currentLng = startLng + (targetLng - startLng) * ease;
+
+        // 3. Stop ze pas daarna weer samen in een array
         posRef.current = [currentLat, currentLng];
 
         if (markerRef.current) {
