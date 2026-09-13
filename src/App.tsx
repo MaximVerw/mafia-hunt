@@ -128,17 +128,28 @@ const createPortraitIcon = (avatarUrl?: string | null, borderColor: string = '#8
 const createDestinationIcon = () => L.divIcon({
   html: `
     <div style="
-      width: 44px; height: 44px;
-      background: #111; border: 3px solid #00ffff; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0px 4px 10px rgba(0,0,0,0.9);
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 3px solid #00ffff;
+      background: #111;
+      overflow: hidden;
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
     ">
-      <span style="font-size: 22px;">🏁</span>
+      <img
+        src="/destination.png"
+        alt="Bestemming"
+        style="width: 100%; height: 100%; object-fit: cover; display: block;"
+      />
     </div>
   `,
   className: '',
-  iconSize: [44, 44],
-  iconAnchor: [22, 22],
+  iconSize: [50, 50],
+  iconAnchor: [25, 25],
 });
 
 const createCapturedCheckIcon = (avatarUrl?: string | null, teamColor: string = '#28a745') => L.divIcon({
@@ -364,6 +375,157 @@ function DestinationEdgePointer({ destination, draftDestination, isAdmin }: { de
     </div>
   );
 }
+ function SmoothTeamMarker({ team, currentTeamId, users }: { team: any, currentTeamId?: string, users: any[] }) {
+    const markerRef = useRef<L.Marker | null>(null);
+    // Bevries de initiële positie voor JSX zodat React-Leaflet de marker niet instant verplaatst
+    const [initialPos] = useState<[number, number]>([team.lat, team.lng]);
+
+    const posRef = useRef<[number, number]>([team.lat, team.lng]);
+    const animRef = useRef<number | null>(null);
+
+    useEffect(() => {
+      const startLat = posRef.current[0];
+      const startLng = posRef.current[1];
+      const targetLat = team.lat;
+      const targetLng = team.lng;
+
+      // Sla animatie over als de positie niet gewijzigd is
+      if (startLat === targetLat && startLng === targetLng) return;
+
+      let startTime: number | null = null;
+      const duration = 1000;
+
+      const animate = (time: number) => {
+        if (startTime === null) startTime = time;
+        const elapsed = time - startTime;
+        const progress = Math.min(1, elapsed / duration);
+        const ease = 1 - Math.pow(1 - progress, 3);
+
+        const currentLat = startLat + (targetLat - startLat) * ease;
+        const currentLng = startLng + (targetLng - startLng) * ease;
+
+        posRef.current = [currentLat, currentLng];
+
+        if (markerRef.current) {
+          markerRef.current.setLatLng([currentLat, currentLng]);
+        }
+
+        if (progress < 1) {
+          animRef.current = requestAnimationFrame(animate);
+        }
+      };
+
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+      animRef.current = requestAnimationFrame(animate);
+
+      return () => {
+        if (animRef.current) cancelAnimationFrame(animRef.current);
+      };
+    }, [team.lat, team.lng]);
+
+    const isMyTeam = currentTeamId === team.id;
+    const passengers = users.filter(u => u.team_id === team.id);
+
+    return (
+      <Marker
+        ref={markerRef}
+        position={initialPos}
+        icon={createCarIcon(team.color, team.emote_url, team.emote_updated_at)}
+        zIndexOffset={isMyTeam ? 1000 : 0}
+      >
+        <Popup>
+          <div style={{ textAlign: 'center', minWidth: '170px' }}>
+            <strong style={{ fontSize: '15px', color: '#ffd700' }}>Capo {team.driver_name}'s Macchina</strong>
+            {isMyTeam && <span style={{ color: '#28a745', fontWeight: 'bold', display: 'block', fontSize: '11px', marginTop: '2px' }}>(Jouw Crew)</span>}
+
+            <div style={{ marginTop: '10px', fontSize: '11px', fontWeight: 'bold', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Mafiosi Aan Boord ({passengers.length})</div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '8px' }}>
+              {passengers.length > 0 ? (
+                passengers.map(p => (
+                  <div key={p.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '50px' }}>
+                    <OvalAvatar src={p.avatar_url} name={p.name} width={38} height={50} border={`2px solid ${team.color || '#d4af37'}`} />
+                    <span style={{ fontSize: '11px', marginTop: '3px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '100%', color: '#ddd' }}>{p.name}</span>
+                  </div>
+                ))
+              ) : (
+                <span style={{ fontStyle: 'italic', fontSize: '12px', color: '#666' }}>Geen mafiosi in de wagen</span>
+              )}
+            </div>
+          </div>
+        </Popup>
+      </Marker>
+    );
+  }
+
+ function SmoothCircle({ center, radius, pathOptions, children }: { center: [number, number], radius: number, pathOptions?: any, children?: React.ReactNode }) {
+   const circleRef = useRef<L.Circle | null>(null);
+
+   // Bevries begin-waarden voor React-Leaflet
+   const [initialCenter] = useState<[number, number]>(center);
+   const [initialRadius] = useState<number>(radius);
+
+   const posRef = useRef<[number, number]>(center);
+   const radiusRef = useRef<number>(radius);
+   const animRef = useRef<number | null>(null);
+
+   useEffect(() => {
+     const startLat = posRef.current[0];
+     const startLng = posRef.current[1];
+     const startRadius = radiusRef.current;
+
+     const targetLat = center[0];
+     const targetLng = center[1];
+     const targetRadius = radius;
+
+     if (startLat === targetLat && startLng === targetLng && startRadius === targetRadius) return;
+
+     const duration = isAdmin?50:5000;
+     let startTime: number | null = null;
+
+     const animate = (time: number) => {
+       if (startTime === null) startTime = time;
+
+       const elapsed = time - startTime;
+       const progress = Math.min(1, elapsed / duration);
+       const ease = 1 - Math.pow(1 - progress, 2);
+
+       const currentLat = startLat + (targetLat - startLat) * ease;
+       const currentLng = startLng + (targetLng - startLng) * ease;
+       const currentR = startRadius + (targetRadius - startRadius) * ease;
+
+       posRef.current = [currentLat, currentLng];
+       radiusRef.current = currentR;
+
+       if (circleRef.current) {
+         circleRef.current.setLatLng([currentLat, currentLng]);
+         circleRef.current.setRadius(currentR);
+       }
+
+       if (progress < 1) {
+         animRef.current = requestAnimationFrame(animate);
+       }
+     };
+
+     if (animRef.current) cancelAnimationFrame(animRef.current);
+     animRef.current = requestAnimationFrame(animate);
+
+     return () => {
+       if (animRef.current) cancelAnimationFrame(animRef.current);
+     };
+   }, [center[0], center[1], radius]);
+
+   return (
+     <Circle
+       ref={circleRef}
+       center={initialCenter}
+       radius={initialRadius}
+       pathOptions={pathOptions}
+     >
+       {children}
+     </Circle>
+   );
+ }
 
 export default function App() {
   const [missions, setMissions] = useState<any[]>([]);
@@ -663,156 +825,7 @@ export default function App() {
     return null;
   }
 
-  function SmoothTeamMarker({ team, currentTeamId, users }: { team: any, currentTeamId?: string, users: any[] }) {
-    const markerRef = useRef<L.Marker | null>(null);
-    const posRef = useRef<[number, number]>([team.lat, team.lng]);
-    const animRef = useRef<number | null>(null);
 
-    useEffect(() => {
-      const target: [number, number] = [team.lat, team.lng];
-      const start = posRef.current;
-      const startTime = performance.now();
-      const duration = 1000; // 1 seconde vloeiende overgang
-
-      const animate = (time: number) => {
-        const elapsed = time - startTime;
-        const progress = Math.min(1, elapsed / duration);
-        // Cubic ease-out voor natuurlijke remweg
-        const ease = 1 - Math.pow(1 - progress, 3);
-
-        // 1. Haal de losse getallen uit de arrays
-        const startLat = posRef.current[0];
-        const startLng = posRef.current[1];
-
-        // (ervan uitgaande dat je prop 'position' heet in deze component)
-        const targetLat = position[0];
-        const targetLng = position[1];
-
-        // 2. Reken apart met de losse getallen (Dit lost de TypeScript error op!)
-        const currentLat = startLat + (targetLat - startLat) * ease;
-        const currentLng = startLng + (targetLng - startLng) * ease;
-
-        // 3. Stop ze pas daarna weer samen in een array
-        posRef.current = [currentLat, currentLng];
-
-        if (markerRef.current) {
-          markerRef.current.setLatLng([currentLat, currentLng]);
-        }
-
-        if (progress < 1) {
-          animRef.current = requestAnimationFrame(animate);
-        }
-      };
-
-      animRef.current = requestAnimationFrame(animate);
-
-      return () => {
-        if (animRef.current) cancelAnimationFrame(animRef.current);
-      };
-    }, [team.lat, team.lng]);
-
-    const isMyTeam = currentTeamId === team.id;
-    const passengers = users.filter(u => u.team_id === team.id);
-
-    return (
-      <Marker
-        ref={markerRef}
-        position={[team.lat, team.lng]}
-        icon={createCarIcon(team.color, team.emote_url, team.emote_updated_at)}
-        zIndexOffset={isMyTeam ? 1000 : 0}
-      >
-        <Popup>
-          <div style={{ textAlign: 'center', minWidth: '170px' }}>
-            <strong style={{ fontSize: '15px', color: '#ffd700' }}>Capo {team.driver_name}'s Macchina</strong>
-            {isMyTeam && <span style={{ color: '#28a745', fontWeight: 'bold', display: 'block', fontSize: '11px', marginTop: '2px' }}>(Jouw Crew)</span>}
-
-            <div style={{ marginTop: '10px', fontSize: '11px', fontWeight: 'bold', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Mafiosi Aan Boord ({passengers.length})</div>
-
-            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '8px' }}>
-              {passengers.length > 0 ? (
-                passengers.map(p => (
-                  <div key={p.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '50px' }}>
-                    <OvalAvatar src={p.avatar_url} name={p.name} width={38} height={50} border={`2px solid ${team.color || '#d4af37'}`} />
-                    <span style={{ fontSize: '11px', marginTop: '3px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '100%', color: '#ddd' }}>{p.name}</span>
-                  </div>
-                ))
-              ) : (
-                <span style={{ fontStyle: 'italic', fontSize: '12px', color: '#666' }}>Geen mafiosi in de wagen</span>
-              )}
-            </div>
-          </div>
-        </Popup>
-      </Marker>
-    );
-  }
-
- function SmoothCircle({ center, radius, pathOptions, children }: { center: [number, number], radius: number, pathOptions?: any, children?: React.ReactNode }) {
-   const circleRef = useRef<L.Circle | null>(null);
-   const posRef = useRef<[number, number]>(center);
-   const radiusRef = useRef<number>(radius);
-   const animRef = useRef<number | null>(null);
-
-   useEffect(() => {
-       // Bewaar start en eindpunten
-       const startLat = posRef.current[0];
-       const startLng = posRef.current[1];
-       const startRadius = radiusRef.current;
-
-       const targetLat = center[0];
-       const targetLng = center[1];
-       const targetRadius = radius;
-
-       const duration = 500; // 0.5 sec animatie
-       let startTime: number | null = null; // Fix: We wachten met invullen
-
-       const animate = (time: number) => {
-         // FIX: Koppel de starttijd aan de interne klok van requestAnimationFrame
-         if (startTime === null) startTime = time;
-
-         const elapsed = time - startTime;
-         const progress = Math.min(1, elapsed / duration);
-
-         // Quadratic ease-out
-         const ease = 1 - Math.pow(1 - progress, 2);
-
-         // Bereken huidige positie tussen start en doel
-         const currentLat = startLat + (targetLat - startLat) * ease;
-         const currentLng = startLng + (targetLng - startLng) * ease;
-         const currentR = startRadius + (targetRadius - startRadius) * ease;
-
-         // Sla op in refs zodat React ze onthoudt
-         posRef.current = [currentLat, currentLng];
-         radiusRef.current = currentR;
-
-         // Update het originele Leaflet element direct
-         if (circleRef.current) {
-           circleRef.current.setLatLng([currentLat, currentLng]);
-           circleRef.current.setRadius(currentR);
-         }
-
-         if (progress < 1) {
-           animRef.current = requestAnimationFrame(animate);
-         }
-       };
-
-       if (animRef.current) cancelAnimationFrame(animRef.current);
-       animRef.current = requestAnimationFrame(animate);
-
-       return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
-     }, [center[0], center[1], radius]);
-
-   return (
-     <Circle
-       ref={circleRef}
-       // BELANGRIJK: Gebruik de refs in plaats van de directe props!
-       center={posRef.current}
-       radius={radiusRef.current}
-       pathOptions={pathOptions}
-     >
-       {children}
-     </Circle>
-   );
- }
 
   const handleCreateTarget = async () => {
     if (!newTargetLoc || !selectedTargetUserId) return;
@@ -1228,7 +1241,7 @@ export default function App() {
                 <Marker position={[destination.lat, destination.lng]} icon={createDestinationIcon()} zIndexOffset={500}>
                   <Popup>
                     <div style={{ textAlign: 'center', minWidth: '150px' }}>
-                      <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 CHECKPOINT</strong>
+                      <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 BESTEMMING</strong>
                       <p style={{ fontSize: '11px', color: '#aaa', margin: '4px 0 8px' }}>Rijd naar deze exacte locatie!</p>
                     </div>
                   </Popup>
