@@ -11,6 +11,18 @@ const DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25
 L.Marker.prototype.options.icon = DefaultIcon;
 
 import imageCompression from 'browser-image-compression';
+
+const getMissionDigits = (missionId: string) => {
+  let hash = 0;
+  for (let i = 0; i < missionId.length; i++) {
+    hash = (hash << 5) - hash + missionId.charCodeAt(i);
+    hash |= 0;
+  }
+  const absVal = Math.abs(hash);
+  const d1 = (absVal % 9) + 1;
+  const d2 = (Math.floor(absVal / 10) % 9) + 1;
+  return `${d1}${d2}`;
+};
 const calculateDistanceMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 6371e3; // Earth radius in meters
   const φ1 = (lat1 * Math.PI) / 180;
@@ -50,7 +62,7 @@ interface OvalAvatarProps {
 }
 
 const MISSION_REVEAL_THRESHOLD_METERS = 100;
-const MISSION_MAX_RADIUS_METERS = 2500;
+const MISSION_MAX_RADIUS_METERS = 5000;
 const OvalAvatar = ({ src, name, width = 40, height = 52, border = '2px solid #d4af37' }: OvalAvatarProps) => (
   <div style={{
     width: `${width}px`,
@@ -139,8 +151,7 @@ const createPortraitIcon = (avatarUrl?: string | null, borderColor: string = '#8
   iconSize: [44, 58],
   iconAnchor: [22, 29],
 });
-
-const createDestinationIcon = () => L.divIcon({
+const createDestinationIcon = (imageUrl?: string | null) => L.divIcon({
   html: `
     <div style="
       width: 50px;
@@ -156,7 +167,7 @@ const createDestinationIcon = () => L.divIcon({
       box-sizing: border-box;
     ">
       <img
-        src="/destination.png"
+        src="${imageUrl || '/destination.png'}"
         alt="Bestemming"
         style="width: 100%; height: 100%; object-fit: cover; display: block;"
       />
@@ -166,7 +177,6 @@ const createDestinationIcon = () => L.divIcon({
   iconSize: [50, 50],
   iconAnchor: [25, 25],
 });
-
 const createCapturedCheckIcon = (avatarUrl?: string | null, teamColor: string = '#28a745') => L.divIcon({
   html: `
     <div style="position: relative; width: 44px; height: 58px;">
@@ -251,30 +261,17 @@ const getOrCreateDeviceId = () => {
 };
 
 const myDeviceId = getOrCreateDeviceId();
-function DestinationEdgePointer({ destination, draftDestination, isAdmin }: { destination: any, draftDestination: any, isAdmin: boolean }) {
+function DestinationEdgePointer({ destination, draftDestination, isAdmin, hasUnlockedDestination }: { destination: any, draftDestination: any, isAdmin: boolean, hasUnlockedDestination: boolean }) {
   const map = useMap();
   const containerRef = useRef<HTMLDivElement>(null);
   const [arrowData, setArrowData] = useState<{ x: number, y: number, angle: number } | null>(null);
 
+  // Hide completely for players if they haven't unlocked it yet
+  if (!isAdmin && !hasUnlockedDestination) return null;
+
   let targetLat: number | null = null;
   let targetLng: number | null = null;
   let radiusMeters = 500;
-
-  if (isAdmin && draftDestination) {
-    targetLat = draftDestination.display_lat;
-    targetLng = draftDestination.display_lng;
-    radiusMeters = draftDestination.radius_meters || 500;
-  } else if (destination) {
-    if (isAdmin) {
-      targetLat = destination.is_revealed ? destination.real_lat : destination.display_lat;
-      targetLng = destination.is_revealed ? destination.real_lng : destination.display_lng;
-      radiusMeters = destination.radius_meters || 500;
-    } else {
-      targetLat = destination.lat;
-      targetLng = destination.lng;
-      radiusMeters = destination.radius_meters || 500;
-    }
-  }
 
   // Prevent Leaflet from swallowing click/scroll events on the custom arrow
   useEffect(() => {
@@ -284,7 +281,7 @@ function DestinationEdgePointer({ destination, draftDestination, isAdmin }: { de
   }, []);
 
   useEffect(() => {
-    if (targetLat === null || targetLng === null) {
+    if (targetLat === null || targetLng === null || isNaN(targetLat) || isNaN(targetLng)) {
       setArrowData(null);
       return;
     }
@@ -297,10 +294,10 @@ function DestinationEdgePointer({ destination, draftDestination, isAdmin }: { de
 
       const padding = 50;
       const isInside =
-        targetPoint.x >= padding &&
-        targetPoint.x <= width - padding &&
-        targetPoint.y >= padding &&
-        targetPoint.y <= height - padding;
+          targetPoint.x >= padding &&
+          targetPoint.x <= width - padding &&
+          targetPoint.y >= padding &&
+          targetPoint.y <= height - padding;
 
       if (isInside) {
         setArrowData(null);
@@ -348,49 +345,47 @@ function DestinationEdgePointer({ destination, draftDestination, isAdmin }: { de
   if (!arrowData || targetLat === null || targetLng === null) return null;
 
   const handleZoomToZone = () => {
-    // Generate bounds matching the zone's radius and fit the map view to it
     const bounds = L.latLng(targetLat!, targetLng!).toBounds(radiusMeters);
     map.fitBounds(bounds, { animate: true, padding: [50, 50] });
   };
 
   return (
-    <div
-      ref={containerRef}
-      onClick={handleZoomToZone}
-      style={{
-        position: 'absolute',
-        left: `${arrowData.x}px`,
-        top: `${arrowData.y}px`,
-        transform: 'translate(-50%, -50%)',
-        zIndex: 1500,
-        cursor: 'pointer',
-        background: '#161616',
-        border: '2px solid #00ffff',
-        borderRadius: '50%',
-        width: '42px',
-        height: '42px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: '0 4px 15px rgba(0,0,0,0.9)'
-      }}
-      title="Klik om naar de zone te zoomen"
-    >
-      <div style={{
-        transform: `rotate(${arrowData.angle}deg)`,
-        fontSize: '18px',
-        color: '#00ffff',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        pointerEvents: 'none'
-      }}>
-        ➡️
+      <div
+          ref={containerRef}
+          onClick={handleZoomToZone}
+          style={{
+            position: 'absolute',
+            left: `${arrowData.x}px`,
+            top: `${arrowData.y}px`,
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1500,
+            cursor: 'pointer',
+            background: '#161616',
+            border: '2px solid #00ffff',
+            borderRadius: '50%',
+            width: '42px',
+            height: '42px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.9)'
+          }}
+          title="Klik om naar de zone te zoomen"
+      >
+        <div style={{
+          transform: `rotate(${arrowData.angle}deg)`,
+          fontSize: '18px',
+          color: '#00ffff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none'
+        }}>
+          ➡️
+        </div>
       </div>
-    </div>
   );
-}
- function SmoothTeamMarker({ team, currentTeamId, users }: { team: any, currentTeamId?: string, users: any[] }) {
+} function SmoothTeamMarker({ team, currentTeamId, users }: { team: any, currentTeamId?: string, users: any[] }) {
     const markerRef = useRef<L.Marker | null>(null);
     // Bevries de initiële positie voor JSX zodat React-Leaflet de marker niet instant verplaatst
     const [initialPos] = useState<[number, number]>([team.lat, team.lng]);
@@ -579,18 +574,61 @@ export default function App() {
   const playerLat = userLatestLog ? parseFloat(userLatestLog.lat) : (currentTeam?.lat || null);
   const playerLng = userLatestLog ? parseFloat(userLatestLog.lng) : (currentTeam?.lng || null);
 
+]
+
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [unlockedModalDigits, setUnlockedModalDigits] = useState('');
+
+  // Check if new missions were approved/captured to trigger the unlock animation
+  useEffect(() => {
+    if (!currentTeam || teamCapturedMissions.length === 0) return;
+    const storageKey = `ack_missions_${currentTeam.id}`;
+    const lastAckCount = parseInt(localStorage.getItem(storageKey) || '0', 10);
+
+    if (teamCapturedMissions.length > lastAckCount) {
+      setUnlockedModalDigits(activeTeamDigits);
+      setShowUnlockModal(true);
+    }
+  }, [teamCapturedMissions.length, currentTeam?.id]);
+
+  const handleDismissUnlockModal = () => {
+    if (!currentTeam) return;
+    const storageKey = `ack_missions_${currentTeam.id}`;
+    localStorage.setItem(storageKey, teamCapturedMissions.length.toString());
+    setShowUnlockModal(false);
+  };
   const fetchAllData = async () => {
     const [mRes, tRes, uRes, dRes] = await Promise.all([
       supabase.from('missions').select('*'),
       supabase.from('teams').select('*'),
       supabase.from('users').select('*'),
-      supabase.from(isAdmin ? 'destinations' : 'player_destinations').select('*').eq('id', 'active').maybeSingle()
+      supabase.from('destinations').select('*').eq('id', 'active').maybeSingle()
     ]);
 
-    if (mRes.data) setMissions(mRes.data);
-    if (tRes.data) setTeams(tRes.data);
-    if (uRes.data) setUsers(uRes.data);
-    setDestination(dRes.data || null);
+    if (mRes.data) {
+      setMissions(prev => {
+        if (JSON.stringify(prev) !== JSON.stringify(mRes.data)) return mRes.data;
+        return prev;
+      });
+    }
+    if (tRes.data) {
+      setTeams(prev => {
+        if (JSON.stringify(prev) !== JSON.stringify(tRes.data)) return tRes.data;
+        return prev;
+      });
+    }
+    if (uRes.data) {
+      setUsers(prev => {
+        if (JSON.stringify(prev) !== JSON.stringify(uRes.data)) return uRes.data;
+        return prev;
+      });
+    }
+
+    const newDest = dRes.data || null;
+    setDestination(prev => {
+      if (JSON.stringify(prev) !== JSON.stringify(newDest)) return newDest;
+      return prev;
+    });
 
     const savedUserId = localStorage.getItem('userId');
     if (savedUserId && uRes.data) {
@@ -604,15 +642,91 @@ export default function App() {
           return;
         }
 
-        setCurrentUser(user);
+        setCurrentUser(prev => (prev?.id === user.id && prev?.team_id === user.team_id ? prev : user));
         if (user.team_id) {
           const team = tRes.data?.find(t => t.id === user.team_id);
-          setCurrentTeam(team || null);
+          setCurrentTeam(prev => (prev?.id === team?.id ? prev : (team || null)));
         } else {
           setCurrentTeam(null);
         }
       }
     }
+  }
+  // Find all approved completions for the active team
+  const teamCapturedMissions = currentTeam
+      ? missions.filter(m => m.team_id === currentTeam.id && m.status === 'captured')
+      : [];
+
+  // Mission 1 gives '13', Mission 2 gives '99'
+  const getTeamDigitsArray = (capturedMissions: any[]) => {
+    const digits: string[] = [];
+    if (capturedMissions.length > 0) digits.push('13');
+    if (capturedMissions.length > 1) digits.push('99');
+    return digits;
+  };
+
+  const teamDigitsArr = getTeamDigitsArray(teamCapturedMissions);
+  const activeTeamDigits = teamDigitsArr.join('   ');
+
+  // Destination is unlocked only if the team has correctly solved the code "1993"
+  const hasUnlockedDestination = currentTeam?.code_solved === true;
+  // Mission 1 gives '13', Mission 2 gives '99'
+  const getTeamDigitsArray = (capturedMissions: any[]) => {
+    const digits: string[] = [];
+    if (capturedMissions.length > 0) digits.push('13');
+    if (capturedMissions.length > 1) digits.push('99');
+    return digits;
+  };
+
+  const teamDigitsArr = getTeamDigitsArray(teamCapturedMissions);
+  const activeTeamDigits = teamDigitsArr.join('   ');
+
+
+  // Code Guess Modal State
+  const [showCodeGuessModal, setShowCodeGuessModal] = useState(false);
+  const [guessInput, setGuessInput] = useState(['', '', '', '']);
+  const [guessError, setGuessError] = useState(false);
+
+  const handleVerifyCode = async () => {
+    const enteredCode = guessInput.join('');
+    if (enteredCode === '1993') {
+      await supabase.from('teams').update({ code_solved: true }).eq('id', currentTeam.id);
+      setCurrentTeam((prev: any) => ({ ...prev, code_solved: true }));
+      setShowCodeGuessModal(false);
+      setGuessInput(['', '', '', '']);
+      fetchAllData();
+    } else {
+      setGuessError(true);
+      setTimeout(() => setGuessError(false), 800);
+    }
+  };
+  const getShrinkingCircleParams = (
+      realLat: number,
+      realLng: number,
+      fakeLat: number,
+      fakeLng: number,
+      maxRadius: number,
+      playerLat: number | null,
+      playerLng: number | null
+  ) => {
+    const distanceToReal = (playerLat !== null && playerLng !== null)
+        ? calculateDistanceMeters(playerLat, playerLng, realLat, realLng)
+        : 9999;
+
+    const clampedDist = Math.max(MISSION_REVEAL_THRESHOLD_METERS, Math.min(maxRadius, distanceToReal));
+    const t = Math.max(0, Math.min(1, (maxRadius - clampedDist) / (maxRadius - MISSION_REVEAL_THRESHOLD_METERS)));
+
+    const lerpedLat = fakeLat + (realLat - fakeLat) * t;
+    const lerpedLng = fakeLng + (realLng - fakeLng) * t;
+
+    const centerToRealDist = calculateDistanceMeters(lerpedLat, lerpedLng, realLat, realLng);
+    const circleRadius = Math.max(clampedDist, centerToRealDist);
+
+    return {
+      center: [lerpedLat, lerpedLng] as [number, number],
+      radius: circleRadius,
+      distanceToReal
+    };
   };
 
   const fetchDynamicData = async () => {
@@ -765,9 +879,84 @@ export default function App() {
     setNewTargetLoc(null);
   };
 
+  const calculateEdgePosition = (lat: number, lng: number, radiusMeters: number): [number, number] => {
+    const dLng = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180));
+    return [lat, lng + dLng];
+  };
+// Add this state alongside your other states
+  const [destinationImageFile, setDestinationImageFile] = useState<File | null>(null);
+
+  const handlePublishMission = async () => {
+    if (!draftMission || !targetImageFile) return;
+    setIsAdminUploading(true);
+
+    // Upload raw file directly without compression
+    const fileName = `target_${Math.random()}.${targetImageFile.name.split('.').pop()}`;
+    const { error } = await supabase.storage.from('proofs').upload(fileName, targetImageFile);
+
+    let publicUrl = null;
+    if (!error) {
+      publicUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
+    }
+
+    await supabase.from('missions').insert([{
+      title: 'Geheime Locatie',
+      lat: draftMission.real_lat,
+      lng: draftMission.real_lng,
+      display_lat: draftMission.display_lat,
+      display_lng: draftMission.display_lng,
+      status: 'available',
+      image_url: publicUrl,
+      user_id: null
+    }]);
+
+    setDraftMission(null);
+    setTargetImageFile(null);
+    setIsAdminUploading(false);
+    fetchAllData();
+  };
+
+  const handleCreateTarget = async () => {
+    if (!newTargetLoc || !targetImageFile) return;
+    setIsAdminUploading(true);
+
+    // Upload raw file directly without compression
+    const fileName = `target_${Math.random()}.${targetImageFile.name.split('.').pop()}`;
+    const { error } = await supabase.storage.from('proofs').upload(fileName, targetImageFile);
+
+    let publicUrl = null;
+    if (!error) {
+      publicUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
+    }
+
+    await supabase.from('missions').insert([{
+      title: 'Geheime Locatie',
+      lat: newTargetLoc.lat,
+      lng: newTargetLoc.lng,
+      status: 'available',
+      image_url: publicUrl,
+      user_id: null
+    }]);
+
+    setNewTargetLoc(null);
+    setTargetImageFile(null);
+    setIsAdminUploading(false);
+    fetchAllData();
+  };
+
   const handlePublishDestination = async () => {
     if (!draftDestination) return;
     setIsAdminUploading(true);
+
+    let publicUrl = draftDestination.image_url || null;
+    if (destinationImageFile) {
+      // Upload raw file directly without compression
+      const fileName = `dest_${Math.random()}.${destinationImageFile.name.split('.').pop()}`;
+      const { error } = await supabase.storage.from('proofs').upload(fileName, destinationImageFile);
+      if (!error) {
+        publicUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
+      }
+    }
 
     await supabase.from('destinations').upsert({
       id: 'active',
@@ -777,20 +966,18 @@ export default function App() {
       display_lat: draftDestination.display_lat,
       display_lng: draftDestination.display_lng,
       radius_meters: draftDestination.radius_meters,
+      image_url: publicUrl,
       is_revealed: false,
       created_at: new Date().toISOString()
     });
 
     setDraftDestination(null);
+    setDestinationImageFile(null);
     setIsAdminUploading(false);
     fetchAllData();
   };
 
-  const calculateEdgePosition = (lat: number, lng: number, radiusMeters: number): [number, number] => {
-    const dLng = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180));
-    return [lat, lng + dLng];
-  };
-
+// Update handleEditDestination
   const handleEditDestination = () => {
     if (!destination) return;
     setDraftDestination({
@@ -798,10 +985,10 @@ export default function App() {
       real_lng: destination.real_lng,
       display_lat: destination.display_lat,
       display_lng: destination.display_lng,
-      radius_meters: destination.radius_meters
+      radius_meters: destination.radius_meters,
+      image_url: destination.image_url
     });
   };
-
   const handleRevealDestination = async () => {
     if (!window.confirm("Exacte locatie onthullen aan alle spelers?")) return;
     await supabase.from('destinations').update({ is_revealed: true }).eq('id', 'active');
@@ -939,65 +1126,6 @@ export default function App() {
     });
     return null;
   }
-  const handlePublishMission = async () => {
-    if (!draftMission || !targetImageFile) return;
-    setIsAdminUploading(true);
-
-    const compressedFile = await compressImage(targetImageFile);
-    const fileName = `target_${Math.random()}.${compressedFile.name.split('.').pop()}`;
-    const { error } = await supabase.storage.from('proofs').upload(fileName, compressedFile);
-
-    let publicUrl = null;
-    if (!error) {
-      publicUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
-    }
-
-    await supabase.from('missions').insert([{
-      title: 'Geheime Locatie',
-      lat: draftMission.real_lat,
-      lng: draftMission.real_lng,
-      display_lat: draftMission.display_lat,
-      display_lng: draftMission.display_lng,
-      status: 'available',
-      image_url: publicUrl,
-      user_id: null
-    }]);
-
-    setDraftMission(null);
-    setTargetImageFile(null);
-    setIsAdminUploading(false);
-    fetchAllData();
-  };
-
-
-  const handleCreateTarget = async () => {
-    if (!newTargetLoc || !targetImageFile) return;
-    setIsAdminUploading(true);
-
-    // Compress and upload the location image
-    const compressedFile = await compressImage(targetImageFile);
-    const fileName = `target_${Math.random()}.${compressedFile.name.split('.').pop()}`;
-    const { error } = await supabase.storage.from('proofs').upload(fileName, compressedFile);
-
-    let publicUrl = null;
-    if (!error) {
-      publicUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
-    }
-
-    await supabase.from('missions').insert([{
-      title: 'Geheime Locatie',
-      lat: newTargetLoc.lat,
-      lng: newTargetLoc.lng,
-      status: 'available',
-      image_url: publicUrl,
-      user_id: null // No longer bound to a user
-    }]);
-
-    setNewTargetLoc(null);
-    setTargetImageFile(null);
-    setIsAdminUploading(false);
-    fetchAllData();
-  };
 
 
   if (!isAdmin && !currentUser) {
@@ -1101,87 +1229,133 @@ export default function App() {
       `}</style>
 
       {!isAdmin && currentUser && (
-        <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: 'calc(100vw - 24px)' }}>
-          <div style={{ background: 'rgba(15, 15, 15, 0.92)', color: 'white', padding: '10px 14px', borderRadius: '8px', border: '1px solid #d4af37', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', boxShadow: '0 4px 12px rgba(0,0,0,0.8)' }}>
-            <OvalAvatar src={currentUser.avatar_url} name={currentUser.name} width={34} height={44} border="1px solid #ffd700" />
+          <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: 'calc(100vw - 24px)' }}>
+            {/* Main Player Panel Box */}
+            <div style={{ background: 'rgba(15, 15, 15, 0.92)', color: 'white', padding: '10px 14px', borderRadius: '8px', border: '1px solid #d4af37', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', boxShadow: '0 4px 12px rgba(0,0,0,0.8)' }}>
+              <OvalAvatar src={currentUser.avatar_url} name={currentUser.name} width={34} height={44} border="1px solid #ffd700" />
 
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#ffd700', letterSpacing: '0.5px' }}>{currentUser.name}</span>
-              <span style={{ fontSize: '11px', color: '#aaa', fontStyle: 'italic' }}>{currentTeam ? `Capo: ${currentTeam.driver_name}` : 'Consigliere Weergave'}</span>
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#ffd700', letterSpacing: '0.5px' }}>{currentUser.name}</span>
+                <span style={{ fontSize: '11px', color: '#aaa', fontStyle: 'italic' }}>{currentTeam ? `Capo: ${currentTeam.driver_name}` : 'Consigliere Weergave'}</span>
+              </div>
 
-            <label style={{ fontSize: '11px', background: '#262626', color: '#e0e0e0', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #444', fontWeight: 'bold' }}>
-              📸 Maak Mugshot
-              <input
-                type="file"
-                accept="image/*"
-                capture="user"
-                style={{ display: 'none' }}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  if (e.target.files && e.target.files[0]) {
-                    handleAvatarUpload(currentUser.id, e.target.files[0]);
-                  }
-                }}
-              />
-            </label>
-
-            {currentTeam && (() => {
-              const teamEmoteAge = currentTeam.emote_updated_at ? Date.now() - new Date(currentTeam.emote_updated_at).getTime() : 999999;
-              const canUploadEmote = teamEmoteAge >= 30000;
-
-              return (
-                <label style={{
-                  fontSize: '11px',
-                  background: canUploadEmote ? '#1e90ff' : '#555',
-                  color: 'white',
-                  padding: '6px 10px',
-                  borderRadius: '4px',
-                  cursor: canUploadEmote && !isUploadingEmote ? 'pointer' : 'not-allowed',
-                  border: '1px solid #d4af37',
-                  fontWeight: 'bold',
-                  opacity: canUploadEmote ? 1 : 0.6
-                }}>
-                  {isUploadingEmote ? '⏳ Bezig...' : canUploadEmote ? '💭 Stuur Emote' : '⏳ Cooldown (30s)'}
-                  <input
+              <label style={{ fontSize: '11px', background: '#262626', color: '#e0e0e0', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #444', fontWeight: 'bold' }}>
+                📸 Maak Mugshot
+                <input
                     type="file"
                     accept="image/*"
                     capture="user"
                     style={{ display: 'none' }}
-                    disabled={!canUploadEmote || isUploadingEmote}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      if (e.target.files && e.target.files[0]) handleEmoteUpload(e.target.files[0]);
+                      if (e.target.files && e.target.files[0]) {
+                        handleAvatarUpload(currentUser.id, e.target.files[0]);
+                      }
                     }}
-                  />
-                </label>
-              );
-            })()}
+                />
+              </label>
 
+              {currentTeam && (() => {
+                const teamEmoteAge = currentTeam.emote_updated_at ? Date.now() - new Date(currentTeam.emote_updated_at).getTime() : 999999;
+                const canUploadEmote = teamEmoteAge >= 30000;
+
+                return (
+                    <label style={{
+                      fontSize: '11px',
+                      background: canUploadEmote ? '#1e90ff' : '#555',
+                      color: 'white',
+                      padding: '6px 10px',
+                      borderRadius: '4px',
+                      cursor: canUploadEmote && !isUploadingEmote ? 'pointer' : 'not-allowed',
+                      border: '1px solid #d4af37',
+                      fontWeight: 'bold',
+                      opacity: canUploadEmote ? 1 : 0.6
+                    }}>
+                      {isUploadingEmote ? '⏳ Bezig...' : canUploadEmote ? '💭 Stuur Emote' : '⏳ Cooldown (30s)'}
+                      <input
+                          type="file"
+                          accept="image/*"
+                          capture="user"
+                          style={{ display: 'none' }}
+                          disabled={!canUploadEmote || isUploadingEmote}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                            if (e.target.files && e.target.files[0]) handleEmoteUpload(e.target.files[0]);
+                          }}
+                      />
+                    </label>
+                );
+              })()}
+
+              {currentTeam && (
+                  <button
+                      onClick={() => setShowRoster(!showRoster)}
+                      style={{ fontSize: '11px', padding: '6px 10px', background: showRoster ? '#8b0000' : '#1e1e1e', color: 'white', border: '1px solid #d4af37', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                  >
+                    🚘 Crew Lijst ({carPassengers.length})
+                  </button>
+              )}
+            </div>
+            {/* Ontgrendelde Code Block */}
             {currentTeam && (
-              <button
-                onClick={() => setShowRoster(!showRoster)}
-                style={{ fontSize: '11px', padding: '6px 10px', background: showRoster ? '#8b0000' : '#1e1e1e', color: 'white', border: '1px solid #d4af37', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                🚘 Crew Lijst ({carPassengers.length})
-              </button>
-            )}
-          </div>
-
-          {!isAdmin && currentTeam && showRoster && (
-            <div style={{ background: '#181818', color: '#e0e0e0', padding: '14px', border: '1px solid #d4af37', borderRadius: '8px', minWidth: '250px', boxShadow: '0px 6px 15px rgba(0,0,0,0.9)' }}>
-              <h4 style={{ margin: '0 0 10px 0', color: '#d4af37', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '13px' }}>Capo {currentTeam?.driver_name}'s Crew</h4>
-              {carPassengers.map(u => (
-                <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '10px', borderBottom: '1px solid #282828', paddingBottom: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <OvalAvatar src={u.avatar_url} name={u.name} width={30} height={40} />
-                    <span style={{ color: '#f0f0f0', fontWeight: u.id === currentUser?.id ? 'bold' : 'normal', fontSize: '13px' }}>
-                      {u.name}
-                    </span>
+                <div
+                    onClick={() => {
+                      if (teamCapturedMissions.length >= 2 && !currentTeam.code_solved) {
+                        setShowCodeGuessModal(true);
+                      }
+                    }}
+                    style={{
+                      background: currentTeam.code_solved
+                          ? 'linear-gradient(135deg, #002211 0%, #0a0a0a 100%)'
+                          : 'linear-gradient(135deg, #1a0000 0%, #0a0a0a 100%)',
+                      border: `2px solid ${currentTeam.code_solved ? '#28a745' : '#8b0000'}`,
+                      borderRadius: '8px',
+                      padding: '8px 14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      boxShadow: currentTeam.code_solved ? '0 4px 15px rgba(40,167,69,0.4)' : '0 4px 15px rgba(139,0,0,0.4)',
+                      cursor: teamCapturedMissions.length >= 2 && !currentTeam.code_solved ? 'pointer' : 'default',
+                      animation: teamCapturedMissions.length >= 2 && !currentTeam.code_solved ? 'pulseGlow 2s infinite ease-in-out' : 'none'
+                    }}
+                >
+                  <style>{`
+                @keyframes pulseGlow {
+                  0% { transform: scale(1); box-shadow: 0 0 5px rgba(139,0,0,0.5); }
+                  50% { transform: scale(1.02); box-shadow: 0 0 15px rgba(255,0,0,0.8); }
+                  100% { transform: scale(1); box-shadow: 0 0 5px rgba(139,0,0,0.5); }
+                }
+              `}</style>
+                  <span style={{ fontSize: '10px', color: currentTeam.code_solved ? '#28a745' : '#ff4d4d', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '2px' }}>
+                {currentTeam.code_solved ? '🔓 Bestemming Ontgrendeld!' : teamCapturedMissions.length >= 2 ? '✨ Tik om code te raden!' : `🩸 Cijfers (${teamCapturedMissions.length}/2 Missies)`}
+              </span>
+                  <div style={{
+                    fontSize: '22px',
+                    fontWeight: '900',
+                    color: currentTeam.code_solved ? '#28a745' : '#ff1a1a',
+                    letterSpacing: '6px',
+                    fontFamily: 'Courier New, monospace',
+                    textShadow: currentTeam.code_solved ? '0 0 8px rgba(40, 167, 69, 0.8)' : '0 0 8px rgba(255, 0, 0, 0.8)'
+                  }}>
+                    {teamCapturedMissions.length === 0 ? '_ _   _ _' : teamCapturedMissions.length === 1 ? '13   _ _' : '13   99'}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+            )}
+
+            {!isAdmin && currentTeam && showRoster && (
+                <div style={{ background: '#181818', color: '#e0e0e0', padding: '14px', border: '1px solid #d4af37', borderRadius: '8px', minWidth: '250px', boxShadow: '0px 6px 15px rgba(0,0,0,0.9)' }}>
+                  <h4 style={{ margin: '0 0 10px 0', color: '#d4af37', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '13px' }}>Capo {currentTeam?.driver_name}'s Crew</h4>
+                  {carPassengers.map(u => (
+                      <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '10px', borderBottom: '1px solid #282828', paddingBottom: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <OvalAvatar src={u.avatar_url} name={u.name} width={30} height={40} />
+                          <span style={{ color: '#f0f0f0', fontWeight: u.id === currentUser?.id ? 'bold' : 'normal', fontSize: '13px' }}>
+                      {u.name}
+                    </span>
+                        </div>
+                      </div>
+                  ))}
+                </div>
+            )}
+          </div>
       )}
 
       {isAdmin && (
@@ -1359,20 +1533,31 @@ export default function App() {
             </button>
           </div>
       )}
-
       {isAdmin && draftDestination && (
-        <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', gap: '15px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', alignItems: 'center' }}>
-          <div style={{ color: '#ffd700', fontSize: '13px', fontWeight: 'bold' }}>
-            🛠️ Checkpoint Conceptmodus<br/>
-            <span style={{ color: '#aaa', fontSize: '11px', fontWeight: 'normal' }}>Pas locatie en straal aan op de kaart.</span>
+          <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', minWidth: '280px' }}>
+            <div style={{ color: '#ffd700', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}>
+              🛠️ Checkpoint Conceptmodus
+            </div>
+
+            <div>
+              <label style={{ fontSize: '11px', color: '#aaa', display: 'block', marginBottom: '4px' }}>Bestemming Foto (Optioneel)</label>
+              <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setDestinationImageFile(e.target.files ? e.target.files[0] : null)}
+                  style={{ width: '100%', color: '#e0e0e0', fontSize: '11px' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+              <button onClick={handlePublishDestination} disabled={isAdminUploading} style={{ flex: 1, padding: '8px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                {isAdminUploading ? 'Bezig...' : '✅ Publiceer'}
+              </button>
+              <button onClick={() => setDraftDestination(null)} style={{ flex: 1, padding: '8px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                ❌ Annuleren
+              </button>
+            </div>
           </div>
-          <button onClick={handlePublishDestination} disabled={isAdminUploading} style={{ padding: '10px 15px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-            {isAdminUploading ? 'Bezig...' : '✅ Publiceer Checkpoint'}
-          </button>
-          <button onClick={() => setDraftDestination(null)} style={{ padding: '10px 15px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-            ❌ Annuleren
-          </button>
-        </div>
       )}
 
       {captureMission && (
@@ -1390,6 +1575,92 @@ export default function App() {
           </div>
         </div>
       )}
+      {showUnlockModal && (
+          <div
+              onClick={handleDismissUnlockModal}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(5, 2, 2, 0.95)',
+                zIndex: 9999,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '20px',
+                cursor: 'pointer',
+                animation: 'fadeIn 0.4s ease-out'
+              }}
+          >
+            <style>{`
+            @keyframes pulseGlow {
+              0% { transform: scale(0.95); text-shadow: 0 0 10px rgba(255,0,0,0.8), 0 0 30px rgba(139,0,0,0.9); }
+              50% { transform: scale(1.05); text-shadow: 0 0 25px rgba(255,0,0,1), 0 0 50px rgba(255,26,26,1); }
+              100% { transform: scale(0.95); text-shadow: 0 0 10px rgba(255,0,0,0.8), 0 0 30px rgba(139,0,0,0.9); }
+            }
+          `}</style>
+
+            <div style={{
+              border: '2px solid #8b0000',
+              background: 'linear-gradient(180deg, #160000 0%, #0a0a0a 100%)',
+              borderRadius: '12px',
+              padding: '30px 24px',
+              maxWidth: '400px',
+              width: '100%',
+              textAlign: 'center',
+              boxShadow: '0 10px 40px rgba(139,0,0,0.8)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '16px'
+            }}>
+            <span style={{ fontSize: '12px', color: '#ffd700', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>
+              🇮🇹 Bericht van de Don
+            </span>
+              <h2 style={{ margin: 0, color: '#ff4d4d', fontSize: '22px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                Code Bemachtigd!
+              </h2>
+              <p style={{ fontSize: '12px', color: '#aaa', margin: 0, fontStyle: 'italic' }}>
+                Cari Maffiosi di Arsellini,<br/>
+                De Don heeft jullie bewijs goedgekeurd.
+              </p>
+
+              <div style={{
+                fontSize: '38px',
+                fontWeight: '900',
+                color: '#ff1a1a',
+                letterSpacing: '10px',
+                fontFamily: 'Courier New, monospace',
+                margin: '15px 0',
+                animation: 'pulseGlow 2s infinite ease-in-out'
+              }}>
+                {unlockedModalDigits}
+              </div>
+
+              <button
+                  onClick={handleDismissUnlockModal}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: '#8b0000',
+                    color: 'white',
+                    border: '1px solid #ff4d4d',
+                    borderRadius: '6px',
+                    fontWeight: 'bold',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    cursor: 'pointer',
+                    fontSize: '13px'
+                  }}
+              >
+                Tik om door te gaan ➔
+              </button>
+            </div>
+          </div>
+      )}
 
       <MapContainer center={mapCenter} zoom={14} style={{ height: '100%', width: '100%', zIndex: 1 }}>
         <TileLayer
@@ -1399,8 +1670,7 @@ export default function App() {
         />
         <AdminMapEvents />
 
-        <DestinationEdgePointer destination={destination} draftDestination={draftDestination} isAdmin={isAdmin} />
-        {isAdmin && editingMission && (
+        <DestinationEdgePointer destination={destination} draftDestination={draftDestination} isAdmin={isAdmin} hasUnlockedDestination={hasUnlockedDestination} />        {isAdmin && editingMission && (
             <>
               <Marker position={[editingMission.lat, editingMission.lng]} icon={createDestinationIcon()} zIndexOffset={500} opacity={0.7} />
               <Marker
@@ -1427,90 +1697,98 @@ export default function App() {
         )}
         {destination && !draftDestination && (
             <>
-              {!isAdmin ? (
-                  destination.is_revealed ? (
-                      <Marker position={[destination.real_lat ?? destination.lat, destination.real_lng ?? destination.lng]} icon={createDestinationIcon()} zIndexOffset={500}>
-                        <Popup>
-                          <div style={{ textAlign: 'center', minWidth: '150px' }}>
-                            <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 BESTEMMING</strong>
-                            <p style={{ fontSize: '11px', color: '#aaa', margin: '4px 0 8px' }}>Rijd naar deze exacte locatie!</p>
-                          </div>
-                        </Popup>
-                      </Marker>
-                  ) : (
+              {isAdmin || hasUnlockedDestination ? (
+                  !isAdmin ? (
                       (() => {
                         const destRealLat = destination.real_lat ?? destination.lat;
                         const destRealLng = destination.real_lng ?? destination.lng;
                         const destFakeLat = destination.display_lat ?? destRealLat;
                         const destFakeLng = destination.display_lng ?? destRealLng;
-                        const maxDestRadius = destination.radius_meters || 500;
+                        const maxDestRadius = destination.radius_meters || MISSION_MAX_RADIUS_METERS;
 
-                        const destDistance = (playerLat !== null && playerLng !== null)
-                            ? calculateDistanceMeters(playerLat, playerLng, destRealLat, destRealLng)
-                            : 9999;
+                        const { center, radius, distanceToReal } = getShrinkingCircleParams(
+                            destRealLat,
+                            destRealLng,
+                            destFakeLat,
+                            destFakeLng,
+                            maxDestRadius,
+                            playerLat,
+                            playerLng
+                        );
 
-                        const clampedDestDist = Math.max(MISSION_REVEAL_THRESHOLD_METERS, Math.min(maxDestRadius, destDistance));
-                        const destT = Math.max(0, Math.min(1, (maxDestRadius - clampedDestDist) / (maxDestRadius - MISSION_REVEAL_THRESHOLD_METERS)));
+                        if (distanceToReal <= MISSION_REVEAL_THRESHOLD_METERS && !destination.is_revealed) {
+                          supabase.from('destinations').update({ is_revealed: true }).eq('id', 'active').then(() => {
+                            fetchAllData();
+                          });
+                        }
 
-                        const lerpedDestLat = destFakeLat + (destRealLat - destFakeLat) * destT;
-                        const lerpedDestLng = destFakeLng + (destRealLng - destFakeLng) * destT;
-
-                        const destCenterToRealDist = calculateDistanceMeters(lerpedDestLat, lerpedDestLng, destRealLat, destRealLng);
-                        const destCircleRadius = Math.max(clampedDestDist, destCenterToRealDist);
+                        if (destination.is_revealed || distanceToReal <= MISSION_REVEAL_THRESHOLD_METERS) {
+                          return (
+                              <Marker position={[destRealLat, destRealLng]} icon={createDestinationIcon(destination.image_url)} zIndexOffset={500}>
+                                <Popup>
+                                  <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '150px' }}>
+                                    <img
+                                        src={destination.image_url || '/destination.png'}
+                                        alt="Bestemming"
+                                        onClick={() => setExpandedImage(destination.image_url || '/destination.png')}
+                                        style={{ width: '100px', height: '100px', objectFit: 'cover', border: '2px solid #00ffff', borderRadius: '8px', cursor: 'zoom-in', marginBottom: '8px' }}
+                                    />
+                                    <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 BESTEMMING</strong>
+                                    <p style={{ fontSize: '11px', color: '#aaa', margin: '4px 0 8px' }}>Rijd naar deze exacte locatie!</p>
+                                  </div>
+                                </Popup>
+                              </Marker>
+                          );
+                        }
 
                         return (
                             <SmoothCircle
-                                center={[lerpedDestLat, lerpedDestLng]}
-                                radius={destCircleRadius}
+                                center={center}
+                                radius={radius}
                                 pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.15)', color: '#00ffff', weight: 2 }}
                             >
                               <Popup>
                                 <div style={{ textAlign: 'center' }}>
                                   <strong style={{ color: '#00ffff' }}>🏁 Bestemming Zoekgebied</strong>
-                                  <p style={{ fontSize: '11px', color: '#aaa' }}>Kom dichterbij ({Math.round(destDistance)}m) om de zone te vernauwen.</p>
+                                  <p style={{ fontSize: '11px', color: '#aaa' }}>Kom dichterbij ({Math.round(distanceToReal)}m) om de zone te vernauwen.</p>
                                 </div>
                               </Popup>
                             </SmoothCircle>
                         );
                       })()
-                  )
-              ) : (
-                  // Admin destination view
-                  <>
-                    <Marker position={[destination.real_lat, destination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500}>
-                      <Popup>
-                        <div style={{ textAlign: 'center', minWidth: '150px' }}>
-                          <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 ECHTE CHECKPOINT</strong>
-                          {!destination.is_revealed && (
-                              <button onClick={handleRevealDestination} style={{ width: '100%', margin: '6px 0', padding: '6px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                                👀 Onthul aan Spelers
+                  ) : (
+                      // Admin destination view
+                      <>
+                        <Marker position={[destination.real_lat, destination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500}>
+                          <Popup>
+                            <div style={{ textAlign: 'center', minWidth: '150px' }}>
+                              <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 ECHTE CHECKPOINT</strong>
+                              <button onClick={handleClearDestination} style={{ width: '100%', marginTop: '4px', padding: '6px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                🗑️ Wis Bestemming
                               </button>
-                          )}
-                          <button onClick={handleClearDestination} style={{ width: '100%', marginTop: '4px', padding: '6px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                            🗑️ Wis Bestemming
-                          </button>
-                        </div>
-                      </Popup>
-                    </Marker>
+                            </div>
+                          </Popup>
+                        </Marker>
 
-                    {!destination.is_revealed && (
-                        <>
-                          <Marker position={[destination.display_lat, destination.display_lng]} zIndexOffset={400}>
-                            <Popup>
-                              <div style={{ textAlign: 'center', minWidth: '140px' }}>
-                                <strong style={{ color: '#111', display: 'block', marginBottom: '8px' }}>⚙️ Huidige Zoekzone</strong>
-                                <button onClick={handleEditDestination} style={{ width: '100%', padding: '6px', background: '#d4af37', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                                  ✏️ Bewerk Zone
-                                </button>
-                                <span style={{ fontSize: '11px', color: '#666', fontWeight: 'bold', display: 'block', marginTop: '6px' }}>Straal: {Math.round(destination.radius_meters)}m</span>
-                              </div>
-                            </Popup>
-                          </Marker>
-                          <SmoothCircle center={[destination.display_lat, destination.display_lng]} radius={destination.radius_meters || 500} pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.1)', color: '#00ffff', weight: 2, dashArray: '5, 5' }} />
-                        </>
-                    )}
-                  </>
-              )}
+                        {!destination.is_revealed && (
+                            <>
+                              <Marker position={[destination.display_lat, destination.display_lng]} zIndexOffset={400}>
+                                <Popup>
+                                  <div style={{ textAlign: 'center', minWidth: '140px' }}>
+                                    <strong style={{ color: '#111', display: 'block', marginBottom: '8px' }}>⚙️ Huidige Zoekzone</strong>
+                                    <button onClick={handleEditDestination} style={{ width: '100%', padding: '6px', background: '#d4af37', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                      ✏️ Bewerk Zone
+                                    </button>
+                                    <span style={{ fontSize: '11px', color: '#666', fontWeight: 'bold', display: 'block', marginTop: '6px' }}>Straal: {Math.round(destination.radius_meters)}m</span>
+                                  </div>
+                                </Popup>
+                              </Marker>
+                              <SmoothCircle center={[destination.display_lat, destination.display_lng]} radius={destination.radius_meters || 500} pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.1)', color: '#00ffff', weight: 2, dashArray: '5, 5' }} />
+                            </>
+                        )}
+                      </>
+                  )
+              ) : null}
             </>
         )}
         {isAdmin && draftMission && (
@@ -1717,9 +1995,15 @@ export default function App() {
           const fakeLat = baseMission.display_lat ?? realLat;
           const fakeLng = baseMission.display_lng ?? realLng;
 
-          const distanceToReal = (playerLat !== null && playerLng !== null)
-              ? calculateDistanceMeters(playerLat, playerLng, realLat, realLng)
-              : 9999;
+          const { center, radius, distanceToReal } = getShrinkingCircleParams(
+              realLat,
+              realLng,
+              fakeLat,
+              fakeLng,
+              MISSION_MAX_RADIUS_METERS,
+              playerLat,
+              playerLng
+          );
 
           // 1. Completed checkmark
           if (myTeamCompletion && myTeamCompletion.status === 'captured') {
@@ -1772,22 +2056,12 @@ export default function App() {
             );
           }
 
-          // 4. Further away: Lerp center and ensure radius always encapsulates the real destination
-          const clampedDist = Math.max(MISSION_REVEAL_THRESHOLD_METERS, Math.min(MISSION_MAX_RADIUS_METERS, distanceToReal));
-          const t = Math.max(0, Math.min(1, (MISSION_MAX_RADIUS_METERS - clampedDist) / (MISSION_MAX_RADIUS_METERS - MISSION_REVEAL_THRESHOLD_METERS)));
-
-          const lerpedLat = fakeLat + (realLat - fakeLat) * t;
-          const lerpedLng = fakeLng + (realLng - fakeLng) * t;
-
-          // Ensure radius is at least large enough to span from the lerped center to the real destination
-          const centerToRealDist = calculateDistanceMeters(lerpedLat, lerpedLng, realLat, realLng);
-          const circleRadius = Math.max(clampedDist, centerToRealDist);
-
+          // 4. Further away: Render shrinking/lerping red search zone
           return (
               <SmoothCircle
                   key={reactKey}
-                  center={[lerpedLat, lerpedLng]}
-                  radius={circleRadius}
+                  center={center}
+                  radius={radius}
                   pathOptions={{ fillColor: 'rgba(255, 0, 0, 0.2)', color: '#ff4d4d', weight: 2 }}
               >
                 <Popup>
@@ -1839,6 +2113,118 @@ export default function App() {
                   </button>
                 </div>
             ))}
+          </div>
+      )}
+      {showCodeGuessModal && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(5, 2, 2, 0.95)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}>
+            <div style={{
+              border: guessError ? '2px solid #ff1a1a' : '2px solid #8b0000',
+              background: 'linear-gradient(180deg, #160000 0%, #0a0a0a 100%)',
+              borderRadius: '12px',
+              padding: '30px 24px',
+              maxWidth: '360px',
+              width: '100%',
+              textAlign: 'center',
+              boxShadow: '0 10px 40px rgba(139,0,0,0.8)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '16px',
+              transform: guessError ? 'translateX(10px)' : 'none',
+              transition: 'transform 0.1s ease'
+            }}>
+            <span style={{ fontSize: '12px', color: '#ffd700', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>
+              🇮🇹 Laatste Test van de Don
+            </span>
+              <h3 style={{ margin: 0, color: '#ff4d4d', fontSize: '18px', textTransform: 'uppercase' }}>
+                Vul de 4-cijferige Code in
+              </h3>
+              <p style={{ fontSize: '11px', color: '#aaa', margin: 0, fontStyle: 'italic' }}>
+                Gebruik de verkregen cijfers uit jullie missies (13 & 99) om de geheime combinatie te vormen.
+              </p>
+
+              <div style={{ display: 'flex', gap: '10px', margin: '15px 0' }}>
+                {guessInput.map((digit, index) => (
+                    <input
+                        key={index}
+                        id={`guess-digit-${index}`}
+                        type="text"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          const newInputs = [...guessInput];
+                          newInputs[index] = val;
+                          setGuessInput(newInputs);
+
+                          // Auto-focus next input box
+                          if (val && index < 3) {
+                            const nextInput = document.getElementById(`guess-digit-${index + 1}`);
+                            if (nextInput) nextInput.focus();
+                          }
+                        }}
+                        style={{
+                          width: '50px',
+                          height: '60px',
+                          fontSize: '28px',
+                          textAlign: 'center',
+                          background: '#111',
+                          border: '2px solid #d4af37',
+                          borderRadius: '6px',
+                          color: '#ff1a1a',
+                          fontWeight: 'bold',
+                          fontFamily: 'Courier New, monospace'
+                        }}
+                    />
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                <button
+                    onClick={handleVerifyCode}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: '#28a745',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer'
+                    }}
+                >
+                  Bevestig Code
+                </button>
+                <button
+                    onClick={() => setShowCodeGuessModal(false)}
+                    style={{
+                      padding: '12px 16px',
+                      background: '#8b0000',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer'
+                    }}
+                >
+                  Sluiten
+                </button>
+              </div>
+            </div>
           </div>
       )}
       {expandedImage && (
