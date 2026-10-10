@@ -557,6 +557,9 @@ export default function App() {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [isPlayerUploading, setIsPlayerUploading] = useState(false);
 
+  const [editingMission, setEditingMission] = useState<any | null>(null);
+  const [adminActionMode, setAdminActionMode] = useState<'mission' | 'destination'>('mission');
+
   const [showAdminRoster, setShowAdminRoster] = useState(false);
   const [newTargetLoc, setNewTargetLoc] = useState<{lat: number, lng: number} | null>(null);
   const [draftMission, setDraftMission] = useState<{ real_lat: number; real_lng: number; display_lat: number; display_lng: number } | null>(null);
@@ -914,12 +917,22 @@ export default function App() {
   function AdminMapEvents() {
     useMapEvents({
       click(e) {
-        if (isAdmin) {
+        if (!isAdmin) return;
+
+        if (adminActionMode === 'mission') {
           setDraftMission({
             real_lat: e.latlng.lat,
             real_lng: e.latlng.lng,
-            display_lat: e.latlng.lat + 0.002, // Initial offset for fake center
+            display_lat: e.latlng.lat + 0.002,
             display_lng: e.latlng.lng + 0.002,
+          });
+        } else {
+          setDraftDestination({
+            real_lat: e.latlng.lat,
+            real_lng: e.latlng.lng,
+            display_lat: e.latlng.lat + 0.002,
+            display_lng: e.latlng.lng + 0.002,
+            radius_meters: 500
           });
         }
       }
@@ -1205,6 +1218,45 @@ export default function App() {
               🗑️ Wis Actieve Bestemming
             </button>
           )}
+          <div style={{ background: '#141414', border: '1px solid #d4af37', padding: '10px 14px', borderRadius: '6px', color: '#fff', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
+            <label style={{ fontSize: '11px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '6px', letterSpacing: '1px' }}>
+              🎯 KAART KLIK MODUS
+            </label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                  onClick={() => setAdminActionMode('mission')}
+                  style={{
+                    flex: 1,
+                    padding: '6px',
+                    background: adminActionMode === 'mission' ? '#8b0000' : '#222',
+                    color: adminActionMode === 'mission' ? 'white' : '#aaa',
+                    border: '1px solid #444',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: 'bold'
+                  }}
+              >
+                📍 Missie Plaatsen
+              </button>
+              <button
+                  onClick={() => setAdminActionMode('destination')}
+                  style={{
+                    flex: 1,
+                    padding: '6px',
+                    background: adminActionMode === 'destination' ? '#00ffff' : '#222',
+                    color: adminActionMode === 'destination' ? 'black' : '#aaa',
+                    border: '1px solid #444',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: 'bold'
+                  }}
+              >
+                🏁 Bestemming Plaatsen
+              </button>
+            </div>
+          </div>
 
           <div style={{ background: '#141414', border: '1px solid #d4af37', padding: '10px 14px', borderRadius: '6px', color: '#fff', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
             <label style={{ fontSize: '11px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '4px', letterSpacing: '1px' }}>
@@ -1286,6 +1338,27 @@ export default function App() {
             <button onClick={() => setDraftMission(null)} style={{ padding: '8px', background: '#333', color: '#aaa', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Annuleren</button>
           </div>
       )}
+      {isAdmin && editingMission && (
+          <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', gap: '15px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', alignItems: 'center' }}>
+            <div style={{ color: '#ffd700', fontSize: '13px', fontWeight: 'bold' }}>
+              🛠️ Zoekcentrum Bewerken<br/>
+              <span style={{ color: '#aaa', fontSize: '11px', fontWeight: 'normal' }}>Sleep de oranje marker op de kaart.</span>
+            </div>
+            <button onClick={async () => {
+              await supabase.from('missions').update({
+                display_lat: editingMission.display_lat,
+                display_lng: editingMission.display_lng
+              }).eq('id', editingMission.id);
+              setEditingMission(null);
+              fetchAllData();
+            }} style={{ padding: '10px 15px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+              ✅ Opslaan
+            </button>
+            <button onClick={() => setEditingMission(null)} style={{ padding: '10px 15px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+              ❌ Annuleren
+            </button>
+          </div>
+      )}
 
       {isAdmin && draftDestination && (
         <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', gap: '15px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', alignItems: 'center' }}>
@@ -1327,70 +1400,118 @@ export default function App() {
         <AdminMapEvents />
 
         <DestinationEdgePointer destination={destination} draftDestination={draftDestination} isAdmin={isAdmin} />
-
+        {isAdmin && editingMission && (
+            <>
+              <Marker position={[editingMission.lat, editingMission.lng]} icon={createDestinationIcon()} zIndexOffset={500} opacity={0.7} />
+              <Marker
+                  draggable={true}
+                  eventHandlers={{
+                    drag: (e) => setEditingMission({ ...editingMission, display_lat: e.target.getLatLng().lat, display_lng: e.target.getLatLng().lng })
+                  }}
+                  position={[editingMission.display_lat, editingMission.display_lng]}
+                  zIndexOffset={600}
+              >
+                <Popup>
+                  <div style={{ textAlign: 'center', minWidth: '120px' }}>
+                    <strong style={{ color: '#111', display: 'block' }}>🎯 Nieuw Nepcentrum</strong>
+                    <span style={{ fontSize: '11px', color: '#666' }}>Sleep om te verplaatsen</span>
+                  </div>
+                </Popup>
+              </Marker>
+              <SmoothCircle
+                  center={[editingMission.display_lat, editingMission.display_lng]}
+                  radius={MISSION_MAX_RADIUS_METERS}
+                  pathOptions={{ fillColor: 'rgba(255, 165, 0, 0.2)', color: 'orange', weight: 2, dashArray: '5, 5' }}
+              />
+            </>
+        )}
         {destination && !draftDestination && (
-          <>
-            {!isAdmin ? (
-              destination.is_revealed ? (
-                <Marker position={[destination.lat, destination.lng]} icon={createDestinationIcon()} zIndexOffset={500}>
-                  <Popup>
-                    <div style={{ textAlign: 'center', minWidth: '150px' }}>
-                      <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 BESTEMMING</strong>
-                      <p style={{ fontSize: '11px', color: '#aaa', margin: '4px 0 8px' }}>Rijd naar deze exacte locatie!</p>
-                    </div>
-                  </Popup>
-                </Marker>
-              ) : (
-                <SmoothCircle
-                  center={[destination.lat, destination.lng]}
-                  radius={destination.radius_meters || 500}
-                  pathOptions={{ fillColor: 'rgba(255, 0, 0, 0.2)', color: '#ff4d4d', weight: 2 }}
-                >
-                  <Popup>
-                    <div style={{ textAlign: 'center' }}>
-                      <strong style={{ color: '#ff4d4d' }}>❓ Zoekgebied</strong>
-                      <p style={{ fontSize: '11px', color: '#aaa' }}>De bestemming ligt ergens in deze zone.</p>
-                    </div>
-                  </Popup>
-                </SmoothCircle>
-              )
-            ) : (
-              <>
-                <Marker position={[destination.real_lat, destination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500}>
-                  <Popup>
-                    <div style={{ textAlign: 'center', minWidth: '150px' }}>
-                      <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 ECHTE CHECKPOINT</strong>
-                      {!destination.is_revealed && (
-                        <button onClick={handleRevealDestination} style={{ width: '100%', margin: '6px 0', padding: '6px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                          👀 Onthul aan Spelers
-                        </button>
-                      )}
-                      <button onClick={handleClearDestination} style={{ width: '100%', marginTop: '4px', padding: '6px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                        🗑️ Wis Bestemming
-                      </button>
-                    </div>
-                  </Popup>
-                </Marker>
+            <>
+              {!isAdmin ? (
+                  destination.is_revealed ? (
+                      <Marker position={[destination.real_lat ?? destination.lat, destination.real_lng ?? destination.lng]} icon={createDestinationIcon()} zIndexOffset={500}>
+                        <Popup>
+                          <div style={{ textAlign: 'center', minWidth: '150px' }}>
+                            <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 BESTEMMING</strong>
+                            <p style={{ fontSize: '11px', color: '#aaa', margin: '4px 0 8px' }}>Rijd naar deze exacte locatie!</p>
+                          </div>
+                        </Popup>
+                      </Marker>
+                  ) : (
+                      (() => {
+                        const destRealLat = destination.real_lat ?? destination.lat;
+                        const destRealLng = destination.real_lng ?? destination.lng;
+                        const destFakeLat = destination.display_lat ?? destRealLat;
+                        const destFakeLng = destination.display_lng ?? destRealLng;
+                        const maxDestRadius = destination.radius_meters || 500;
 
-                {!destination.is_revealed && (
+                        const destDistance = (playerLat !== null && playerLng !== null)
+                            ? calculateDistanceMeters(playerLat, playerLng, destRealLat, destRealLng)
+                            : 9999;
+
+                        const clampedDestDist = Math.max(MISSION_REVEAL_THRESHOLD_METERS, Math.min(maxDestRadius, destDistance));
+                        const destT = Math.max(0, Math.min(1, (maxDestRadius - clampedDestDist) / (maxDestRadius - MISSION_REVEAL_THRESHOLD_METERS)));
+
+                        const lerpedDestLat = destFakeLat + (destRealLat - destFakeLat) * destT;
+                        const lerpedDestLng = destFakeLng + (destRealLng - destFakeLng) * destT;
+
+                        const destCenterToRealDist = calculateDistanceMeters(lerpedDestLat, lerpedDestLng, destRealLat, destRealLng);
+                        const destCircleRadius = Math.max(clampedDestDist, destCenterToRealDist);
+
+                        return (
+                            <SmoothCircle
+                                center={[lerpedDestLat, lerpedDestLng]}
+                                radius={destCircleRadius}
+                                pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.15)', color: '#00ffff', weight: 2 }}
+                            >
+                              <Popup>
+                                <div style={{ textAlign: 'center' }}>
+                                  <strong style={{ color: '#00ffff' }}>🏁 Bestemming Zoekgebied</strong>
+                                  <p style={{ fontSize: '11px', color: '#aaa' }}>Kom dichterbij ({Math.round(destDistance)}m) om de zone te vernauwen.</p>
+                                </div>
+                              </Popup>
+                            </SmoothCircle>
+                        );
+                      })()
+                  )
+              ) : (
+                  // Admin destination view
                   <>
-                    <Marker position={[destination.display_lat, destination.display_lng]} zIndexOffset={400}>
+                    <Marker position={[destination.real_lat, destination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500}>
                       <Popup>
-                        <div style={{ textAlign: 'center', minWidth: '140px' }}>
-                          <strong style={{ color: '#111', display: 'block', marginBottom: '8px' }}>⚙️ Huidige Zoekzone</strong>
-                          <button onClick={handleEditDestination} style={{ width: '100%', padding: '6px', background: '#d4af37', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                            ✏️ Bewerk Zone
+                        <div style={{ textAlign: 'center', minWidth: '150px' }}>
+                          <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 ECHTE CHECKPOINT</strong>
+                          {!destination.is_revealed && (
+                              <button onClick={handleRevealDestination} style={{ width: '100%', margin: '6px 0', padding: '6px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                👀 Onthul aan Spelers
+                              </button>
+                          )}
+                          <button onClick={handleClearDestination} style={{ width: '100%', marginTop: '4px', padding: '6px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                            🗑️ Wis Bestemming
                           </button>
-                          <span style={{ fontSize: '11px', color: '#666', fontWeight: 'bold', display: 'block', marginTop: '6px' }}>Straal: {Math.round(destination.radius_meters)}m</span>
                         </div>
                       </Popup>
                     </Marker>
-                    <SmoothCircle center={[destination.display_lat, destination.display_lng]} radius={destination.radius_meters || 500} pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.1)', color: '#00ffff', weight: 2, dashArray: '5, 5' }} />
+
+                    {!destination.is_revealed && (
+                        <>
+                          <Marker position={[destination.display_lat, destination.display_lng]} zIndexOffset={400}>
+                            <Popup>
+                              <div style={{ textAlign: 'center', minWidth: '140px' }}>
+                                <strong style={{ color: '#111', display: 'block', marginBottom: '8px' }}>⚙️ Huidige Zoekzone</strong>
+                                <button onClick={handleEditDestination} style={{ width: '100%', padding: '6px', background: '#d4af37', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                  ✏️ Bewerk Zone
+                                </button>
+                                <span style={{ fontSize: '11px', color: '#666', fontWeight: 'bold', display: 'block', marginTop: '6px' }}>Straal: {Math.round(destination.radius_meters)}m</span>
+                              </div>
+                            </Popup>
+                          </Marker>
+                          <SmoothCircle center={[destination.display_lat, destination.display_lng]} radius={destination.radius_meters || 500} pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.1)', color: '#00ffff', weight: 2, dashArray: '5, 5' }} />
+                        </>
+                    )}
                   </>
-                )}
-              </>
-            )}
-          </>
+              )}
+            </>
         )}
         {isAdmin && draftMission && (
             <>
@@ -1573,6 +1694,16 @@ export default function App() {
                           );
                         })}
                       </div>
+                      <button
+                          onClick={() => setEditingMission({
+                            ...baseMission,
+                            display_lat: baseMission.display_lat ?? baseMission.lat,
+                            display_lng: baseMission.display_lng ?? baseMission.lng
+                          })}
+                          style={{ width: '100%', marginTop: '8px', background: '#d4af37', color: 'black', border: 'none', padding: '6px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}
+                      >
+                        ✏️ Bewerk Nep Zoekcentrum
+                      </button>
                       <button onClick={() => handleDeleteMission(baseMission.id, baseMission.lat, baseMission.lng)} style={{ width: '100%', marginTop: '10px', background: '#8b0000', color: 'white', border: 'none', padding: '6px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px' }}>🗑️ Wis Missie Voor Iedereen</button>
                     </div>
                   </Popup>
@@ -1581,14 +1712,19 @@ export default function App() {
           }
 
           // ----- PLAYER PROXIMITY LOGIC -----
-          const distance = (playerLat !== null && playerLng !== null)
-              ? calculateDistanceMeters(playerLat, playerLng, baseMission.lat, baseMission.lng)
+          const realLat = baseMission.lat;
+          const realLng = baseMission.lng;
+          const fakeLat = baseMission.display_lat ?? realLat;
+          const fakeLng = baseMission.display_lng ?? realLng;
+
+          const distanceToReal = (playerLat !== null && playerLng !== null)
+              ? calculateDistanceMeters(playerLat, playerLng, realLat, realLng)
               : 9999;
 
           // 1. Completed checkmark
           if (myTeamCompletion && myTeamCompletion.status === 'captured') {
             return (
-                <Marker key={reactKey} position={[baseMission.lat, baseMission.lng]} icon={createCapturedCheckIcon(baseMission.image_url, currentTeam?.color || '#28a745')}>
+                <Marker key={reactKey} position={[realLat, realLng]} icon={createCapturedCheckIcon(baseMission.image_url, currentTeam?.color || '#28a745')}>
                   <Popup>
                     <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <strong style={{ color: '#28a745' }}>Missie Voltooid!</strong>
@@ -1602,7 +1738,7 @@ export default function App() {
           // 2. Pending verification
           if (myTeamCompletion && myTeamCompletion.status === 'pending') {
             return (
-                <Marker key={reactKey} position={[baseMission.lat, baseMission.lng]} icon={createPortraitIcon(baseMission.image_url, '#ffd700')}>
+                <Marker key={reactKey} position={[realLat, realLng]} icon={createPortraitIcon(baseMission.image_url, '#ffd700')}>
                   <Popup>
                     <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <strong style={{ color: '#ffd700' }}>Bewijs Verifiëren</strong>
@@ -1613,10 +1749,10 @@ export default function App() {
             );
           }
 
-          // 3. Close enough (<= 50m): Reveal exact image marker
-          if (distance <= MISSION_REVEAL_THRESHOLD_METERS) {
+          // 3. Close enough (<= threshold): Reveal exact image marker
+          if (distanceToReal <= MISSION_REVEAL_THRESHOLD_METERS) {
             return (
-                <Marker key={reactKey} position={[baseMission.lat, baseMission.lng]} icon={createPortraitIcon(baseMission.image_url, '#8b0000')}>
+                <Marker key={reactKey} position={[realLat, realLng]} icon={createPortraitIcon(baseMission.image_url, '#8b0000')}>
                   <Popup>
                     <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       {baseMission.image_url && (
@@ -1636,30 +1772,28 @@ export default function App() {
             );
           }
 
-          // 4. Further away (> 50m): Shrink radius AND lerp circle center toward real destination
-          const clampedDist = Math.max(MISSION_REVEAL_THRESHOLD_METERS, Math.min(MISSION_MAX_RADIUS_METERS, distance));
+          // 4. Further away: Lerp center and ensure radius always encapsulates the real destination
+          const clampedDist = Math.max(MISSION_REVEAL_THRESHOLD_METERS, Math.min(MISSION_MAX_RADIUS_METERS, distanceToReal));
+          const t = Math.max(0, Math.min(1, (MISSION_MAX_RADIUS_METERS - clampedDist) / (MISSION_MAX_RADIUS_METERS - MISSION_REVEAL_THRESHOLD_METERS)));
 
-          // Progress factor t: 0 when far away (500m), 1 when close (50m)
-          const t = (MISSION_MAX_RADIUS_METERS - clampedDist) / (MISSION_MAX_RADIUS_METERS - MISSION_REVEAL_THRESHOLD_METERS);
+          const lerpedLat = fakeLat + (realLat - fakeLat) * t;
+          const lerpedLng = fakeLng + (realLng - fakeLng) * t;
 
-          const fakeLat = baseMission.display_lat ?? baseMission.lat;
-          const fakeLng = baseMission.display_lng ?? baseMission.lng;
-
-          // Smoothly interpolate center coordinates
-          const lerpedLat = fakeLat + (baseMission.lat - fakeLat) * t;
-          const lerpedLng = fakeLng + (baseMission.lng - fakeLng) * t;
+          // Ensure radius is at least large enough to span from the lerped center to the real destination
+          const centerToRealDist = calculateDistanceMeters(lerpedLat, lerpedLng, realLat, realLng);
+          const circleRadius = Math.max(clampedDist, centerToRealDist);
 
           return (
               <SmoothCircle
                   key={reactKey}
                   center={[lerpedLat, lerpedLng]}
-                  radius={clampedDist}
+                  radius={circleRadius}
                   pathOptions={{ fillColor: 'rgba(255, 0, 0, 0.2)', color: '#ff4d4d', weight: 2 }}
               >
                 <Popup>
                   <div style={{ textAlign: 'center' }}>
                     <strong style={{ color: '#ff4d4d' }}>❓ Zoekgebied</strong>
-                    <p style={{ fontSize: '11px', color: '#aaa' }}>Kom dichterbij ({Math.round(distance)}m) om de locatie te ontdekken.</p>
+                    <p style={{ fontSize: '11px', color: '#aaa' }}>Kom dichterbij ({Math.round(distanceToReal)}m) om de locatie te ontdekken.</p>
                   </div>
                 </Popup>
               </SmoothCircle>
