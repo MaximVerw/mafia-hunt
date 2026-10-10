@@ -11,7 +11,20 @@ const DefaultIcon = L.icon({ iconUrl: icon, shadowUrl: iconShadow, iconSize: [25
 L.Marker.prototype.options.icon = DefaultIcon;
 
 import imageCompression from 'browser-image-compression';
+const calculateDistanceMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371e3; // Earth radius in meters
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
+  const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+};
 const compressImage = async (imageFile: File) => {
   const options = {
     maxSizeMB: 0.03,
@@ -36,6 +49,8 @@ interface OvalAvatarProps {
   border?: string;
 }
 
+const MISSION_REVEAL_THRESHOLD_METERS = 100;
+const MISSION_MAX_RADIUS_METERS = 2500;
 const OvalAvatar = ({ src, name, width = 40, height = 52, border = '2px solid #d4af37' }: OvalAvatarProps) => (
   <div style={{
     width: `${width}px`,
@@ -544,7 +559,9 @@ export default function App() {
 
   const [showAdminRoster, setShowAdminRoster] = useState(false);
   const [newTargetLoc, setNewTargetLoc] = useState<{lat: number, lng: number} | null>(null);
-  const [selectedTargetUserId, setSelectedTargetUserId] = useState('');
+  const [draftMission, setDraftMission] = useState<{ real_lat: number; real_lng: number; display_lat: number; display_lng: number } | null>(null);
+  const [targetImageFile, setTargetImageFile] = useState<File | null>(null);
+  const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [isAdminUploading, setIsAdminUploading] = useState(false);
 
   const [locationLogs, setLocationLogs] = useState<any[]>([]);
@@ -553,6 +570,11 @@ export default function App() {
 
   const selectedUserForTrailRef = useRef<string>('');
   selectedUserForTrailRef.current = selectedUserForTrail;
+
+  // Find reference coordinates: user's last known location log or fallback to team car position
+  const userLatestLog = locationLogs.length > 0 ? locationLogs[locationLogs.length - 1] : null;
+  const playerLat = userLatestLog ? parseFloat(userLatestLog.lat) : (currentTeam?.lat || null);
+  const playerLng = userLatestLog ? parseFloat(userLatestLog.lng) : (currentTeam?.lng || null);
 
   const fetchAllData = async () => {
     const [mRes, tRes, uRes, dRes] = await Promise.all([
@@ -590,13 +612,46 @@ export default function App() {
     }
   };
 
+  const fetchDynamicData = async () => {
+    // Only select exactly what we need for real-time map movement and emotes
+    const { data } = await supabase
+        .from('teams')
+        .select('id, lat, lng, emote_url, emote_updated_at, is_tracking_active');
+
+    if (data) {
+      setTeams((prevTeams) =>
+          prevTeams.map((t) => {
+            const updatedData = data.find((d) => d.id === t.id);
+            return updatedData ? { ...t, ...updatedData } : t;
+          })
+      );
+
+      setCurrentTeam((prevTeam) => {
+        if (!prevTeam) return prevTeam;
+        const updatedData = data.find((d) => d.id === prevTeam.id);
+        return updatedData ? { ...prevTeam, ...updatedData } : prevTeam;
+      });
+    }
+  };
+
   useEffect(() => {
+    // Fetch everything once on mount
     fetchAllData();
-    const pollInterval = setInterval(() => {
+
+    // Heavy data (users, missions, destinations) polls every minute
+    const staticInterval = setInterval(() => {
       fetchAllData();
+    }, 60000);
+
+    // Lightweight data (locations, emotes, tracking status) polls every 5 seconds
+    const dynamicInterval = setInterval(() => {
+      fetchDynamicData();
     }, 5000);
 
-    return () => clearInterval(pollInterval);
+    return () => {
+      clearInterval(staticInterval);
+      clearInterval(dynamicInterval);
+    };
   }, []);
 
   const currentUserRef = useRef<any>(currentUser);
@@ -630,13 +685,22 @@ export default function App() {
         const now = Date.now();
         if (now - lastInsertTimeRef.current >= 15000) {
           lastInsertTimeRef.current = now;
+          // Check if the admin has enabled tracking for the active team
+          if (activeTeam?.is_tracking_active) {
+            const now = Date.now();
 
-          await supabase.from('location_history').insert([{
-            user_id: activeUser.id,
-            team_id: activeTeam?.id || null,
-            lat: latitude,
-            lng: longitude
-          }]);
+            // Throttle updates to every 15 seconds
+            if (now - lastInsertTimeRef.current >= 15000) {
+              lastInsertTimeRef.current = now;
+
+              await supabase.from('location_history').insert([{
+                user_id: activeUser.id,
+                team_id: activeTeam.id,
+                lat: latitude,
+                lng: longitude
+              }]);
+            }
+          }
         }
       };
 
@@ -746,19 +810,18 @@ export default function App() {
     await supabase.from('destinations').delete().eq('id', 'active');
     fetchAllData();
   };
-
-  const fetchLocationLogs = async (userId: string) => {
-    setSelectedUserForTrail(userId);
-    if (!userId) {
+  const fetchLocationLogs = async (teamId: string) => {
+    setSelectedUserForTrail(teamId); // We are reusing this state variable to hold the team ID
+    if (!teamId) {
       setLocationLogs([]);
       return;
     }
 
     const { data } = await supabase
-      .from('location_history')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: true });
+        .from('location_history')
+        .select('*')
+        .eq('team_id', teamId)
+        .order('created_at', { ascending: true });
 
     if (data) setLocationLogs(data);
   };
@@ -785,7 +848,6 @@ export default function App() {
     localStorage.setItem('userId', userId);
     fetchAllData();
   };
-
   const handlePlayerCapture = async () => {
     if (!captureMission || !proofFile || !currentTeam) return;
     setIsPlayerUploading(true);
@@ -799,11 +861,17 @@ export default function App() {
       proofUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
     }
 
-    await supabase.from('missions').update({
+    // INSERT linked via coordinates to avoid Foreign Key errors
+    await supabase.from('missions').insert([{
+      title: captureMission.title,
+      lat: captureMission.lat,
+      lng: captureMission.lng,
       status: 'pending',
-      proof_url: proofUrl,
-      team_id: currentTeam.id
-    }).eq('id', captureMission.id);
+      image_url: captureMission.image_url,
+      user_id: null,
+      team_id: currentTeam.id,
+      proof_url: proofUrl
+    }]);
 
     setCaptureMission(null);
     setProofFile(null);
@@ -811,67 +879,113 @@ export default function App() {
     fetchAllData();
   };
 
+  const handleDeleteMission = async (baseMissionId: string, lat: number, lng: number) => {
+    if (!window.confirm("Deze locatiemissie permanent wissen (*Silenzio*)?")) return;
+    // Delete the main mission AND all team submissions sharing these coordinates
+    await supabase.from('missions').delete().eq('lat', lat).eq('lng', lng);
+    fetchAllData();
+  };
+
+  const handleApproveCapture = async (completionId: string) => {
+    await supabase.from('missions').update({ status: 'captured' }).eq('id', completionId);
+    fetchAllData();
+  };
+
+  const handleRejectCapture = async (completionId: string) => {
+    if (!window.confirm("Bewijs afkeuren en team opnieuw laten proberen?")) return;
+    // Delete the child record so the team can try again
+    await supabase.from('missions').delete().eq('id', completionId);
+    fetchAllData();
+  };
   const adminAssignUser = async (userId: string, teamId: string | null) => {
     await supabase.from('users').update({ team_id: teamId }).eq('id', userId);
     fetchAllData();
   };
+  const handleToggleTracking = async (teamId: string, currentState: boolean) => {
+    // 1. Update the database
+    await supabase
+        .from('teams')
+        .update({ is_tracking_active: !currentState })
+        .eq('id', teamId);
 
+    // 2. Fetch the fresh data so the button flips to AAN in the UI
+    fetchAllData();
+  };
   function AdminMapEvents() {
     useMapEvents({
       click(e) {
-        if (isAdmin) setNewTargetLoc({ lat: e.latlng.lat, lng: e.latlng.lng });
+        if (isAdmin) {
+          setDraftMission({
+            real_lat: e.latlng.lat,
+            real_lng: e.latlng.lng,
+            display_lat: e.latlng.lat + 0.002, // Initial offset for fake center
+            display_lng: e.latlng.lng + 0.002,
+          });
+        }
       }
     });
     return null;
   }
-
-
-
-  const handleCreateTarget = async () => {
-    if (!newTargetLoc || !selectedTargetUserId) return;
+  const handlePublishMission = async () => {
+    if (!draftMission || !targetImageFile) return;
     setIsAdminUploading(true);
 
-    const targetUser = users.find(u => u.id === selectedTargetUserId);
+    const compressedFile = await compressImage(targetImageFile);
+    const fileName = `target_${Math.random()}.${compressedFile.name.split('.').pop()}`;
+    const { error } = await supabase.storage.from('proofs').upload(fileName, compressedFile);
+
+    let publicUrl = null;
+    if (!error) {
+      publicUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
+    }
 
     await supabase.from('missions').insert([{
-      title: targetUser?.name || 'Gevangen Mafioso',
-      user_id: selectedTargetUserId,
-      lat: newTargetLoc.lat,
-      lng: newTargetLoc.lng,
+      title: 'Geheime Locatie',
+      lat: draftMission.real_lat,
+      lng: draftMission.real_lng,
+      display_lat: draftMission.display_lat,
+      display_lng: draftMission.display_lng,
       status: 'available',
-      image_url: targetUser?.avatar_url || null
+      image_url: publicUrl,
+      user_id: null
     }]);
 
-    setNewTargetLoc(null);
-    setSelectedTargetUserId('');
+    setDraftMission(null);
+    setTargetImageFile(null);
     setIsAdminUploading(false);
     fetchAllData();
   };
 
-  const handleApproveCapture = async (missionId: string) => {
-    const mission = missions.find(m => m.id === missionId);
-    if (!mission) return;
 
-    await supabase.from('missions').update({ status: 'captured' }).eq('id', missionId);
+  const handleCreateTarget = async () => {
+    if (!newTargetLoc || !targetImageFile) return;
+    setIsAdminUploading(true);
 
-    if (mission.user_id && mission.team_id) {
-      await supabase.from('users').update({ team_id: mission.team_id }).eq('id', mission.user_id);
+    // Compress and upload the location image
+    const compressedFile = await compressImage(targetImageFile);
+    const fileName = `target_${Math.random()}.${compressedFile.name.split('.').pop()}`;
+    const { error } = await supabase.storage.from('proofs').upload(fileName, compressedFile);
+
+    let publicUrl = null;
+    if (!error) {
+      publicUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
     }
 
+    await supabase.from('missions').insert([{
+      title: 'Geheime Locatie',
+      lat: newTargetLoc.lat,
+      lng: newTargetLoc.lng,
+      status: 'available',
+      image_url: publicUrl,
+      user_id: null // No longer bound to a user
+    }]);
+
+    setNewTargetLoc(null);
+    setTargetImageFile(null);
+    setIsAdminUploading(false);
     fetchAllData();
   };
 
-  const handleRejectCapture = async (id: string) => {
-    if (!window.confirm("Reddingsbewijs afkeuren en mafioso als gijzelaar laten staan?")) return;
-    await supabase.from('missions').update({ status: 'available', proof_url: null, team_id: null }).eq('id', id);
-    fetchAllData();
-  };
-
-  const handleDeleteMission = async (id: string) => {
-    if (!window.confirm("Dit gijzelaarsdossier permanent wissen (*Silenzio*)?")) return;
-    await supabase.from('missions').delete().eq('id', id);
-    fetchAllData();
-  };
 
   if (!isAdmin && !currentUser) {
     return (
@@ -1098,23 +1212,23 @@ export default function App() {
             </label>
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               <select
-                value={selectedUserForTrail}
-                onChange={(e) => fetchLocationLogs(e.target.value)}
-                style={{ padding: '6px', background: '#222', color: '#d4af37', border: '1px solid #444', borderRadius: '4px', fontSize: '12px' }}
+                  value={selectedUserForTrail}
+                  onChange={(e) => fetchLocationLogs(e.target.value)}
+                  style={{ padding: '6px', background: '#222', color: '#d4af37', border: '1px solid #444', borderRadius: '4px', fontSize: '12px' }}
               >
-                <option value="">-- Selecteer Mafioso Route --</option>
-                {users.map(u => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
+                <option value="">-- Selecteer Macchina Route --</option>
+                {teams.map(t => (
+                    <option key={t.id} value={t.id}>Capo {t.driver_name}'s Crew</option>
                 ))}
               </select>
 
               {locationLogs.length > 0 && (
-                <button
-                  onClick={() => { setLocationLogs([]); setSelectedUserForTrail(''); }}
-                  style={{ padding: '6px 10px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
-                >
-                  Wis Spoor
-                </button>
+                  <button
+                      onClick={() => { setLocationLogs([]); setSelectedUserForTrail(''); }}
+                      style={{ padding: '6px 10px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
+                  >
+                    Wis Spoor
+                  </button>
               )}
             </div>
           </div>
@@ -1150,47 +1264,27 @@ export default function App() {
         </div>
       )}
 
-      {newTargetLoc && (
-        <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', background: '#161616', color: '#e0e0e0', border: '2px solid #8b0000', padding: '20px', borderRadius: '8px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '300px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)' }}>
-          <h3 style={{ margin: 0, color: '#d4af37', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '16px', textAlign: 'center' }}>Locatie Actie Selecteren</h3>
+      {draftMission && (
+          <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', background: '#161616', color: '#e0e0e0', border: '2px solid #8b0000', padding: '20px', borderRadius: '8px', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '320px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)' }}>
+            <h3 style={{ margin: 0, color: '#d4af37', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '15px', textAlign: 'center' }}>Locatie Missie Instellen</h3>
+            <p style={{ fontSize: '11px', color: '#aaa', margin: 0, textAlign: 'center' }}>Sleep de <b>oranje cirkel-marker</b> op de kaart om het nep-zoekgebied te verplaatsen.</p>
 
-          <div style={{ borderBottom: '1px solid #333', paddingBottom: '10px' }}>
-            <label style={{ fontSize: '12px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>1. Checkpoint Instellen</label>
-            <button
-              onClick={handleSetDestination}
-              disabled={isAdminUploading}
-              style={{ width: '100%', padding: '10px', background: '#008b8b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-            >
-              🏁 Stel In Als Checkpoint
-            </button>
+            <div>
+              <label style={{ fontSize: '12px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Doel Foto (Locatie)</label>
+              <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setTargetImageFile(e.target.files ? e.target.files[0] : null)}
+                  style={{ width: '100%', marginBottom: '12px', color: '#e0e0e0', fontSize: '12px' }}
+              />
+
+              <button onClick={handlePublishMission} disabled={!targetImageFile || isAdminUploading} style={{ width: '100%', padding: '10px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: targetImageFile ? 'pointer' : 'not-allowed', fontWeight: 'bold', textTransform: 'uppercase', opacity: targetImageFile ? 1 : 0.5 }}>
+                {isAdminUploading ? 'Bezig...' : '✅ Publiceer Missie'}
+              </button>
+            </div>
+
+            <button onClick={() => setDraftMission(null)} style={{ padding: '8px', background: '#333', color: '#aaa', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Annuleren</button>
           </div>
-
-          <div>
-            <label style={{ fontSize: '12px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>2. Gijzelaar Plaatsen</label>
-            <select value={selectedTargetUserId} onChange={(e) => setSelectedTargetUserId(e.target.value)} style={{ width: '100%', padding: '8px', background: '#222', color: '#e0e0e0', border: '1px solid #444', borderRadius: '4px', marginBottom: '8px' }}>
-              <option value="">Selecteer Gijzelaar...</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.name} {u.team_id ? '(Toegewezen)' : '(Niet toegewezen)'}</option>
-              ))}
-            </select>
-
-            {selectedTargetUserId && (() => {
-              const selectedUser = users.find(u => u.id === selectedTargetUserId);
-              return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', background: '#222', borderRadius: '6px', border: '1px solid #333', marginBottom: '8px' }}>
-                  <OvalAvatar src={selectedUser?.avatar_url} name={selectedUser?.name} />
-                  <span style={{ fontSize: '12px', color: '#aaa' }}>{selectedUser?.avatar_url ? 'Mugshot aanwezig' : 'Geen mugshot in dossier'}</span>
-                </div>
-              );
-            })()}
-
-            <button onClick={handleCreateTarget} disabled={!selectedTargetUserId || isAdminUploading} style={{ width: '100%', padding: '10px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: selectedTargetUserId ? 'pointer' : 'not-allowed', fontWeight: 'bold', textTransform: 'uppercase', opacity: selectedTargetUserId ? 1 : 0.5 }}>
-              {isAdminUploading ? 'Bezig...' : '⛓️ Start Reddingsmissie'}
-            </button>
-          </div>
-
-          <button onClick={() => setNewTargetLoc(null)} style={{ padding: '8px', background: '#333', color: '#aaa', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '4px' }}>Annuleren</button>
-        </div>
       )}
 
       {isAdmin && draftDestination && (
@@ -1211,9 +1305,9 @@ export default function App() {
       {captureMission && (
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.92)', zIndex: 2000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <h2 style={{ color: '#d4af37', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '5px' }}>
-            Herover Mafioso: {captureMission.title}
+            Locatie Bereikt
           </h2>
-          <p style={{ color: '#aaa', fontStyle: 'italic', marginBottom: '20px' }}>Lever fotobewijs van de redding voor de Don...</p>
+          <p style={{ color: '#aaa', fontStyle: 'italic', marginBottom: '20px', textAlign: 'center' }}>Maak een groepsfoto op deze locatie als bewijs voor de Don...</p>
           <input type="file" accept="image/*" capture="user" onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProofFile(e.target.files ? e.target.files[0] : null)} style={{ margin: '15px 0', color: 'white' }} />
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={handlePlayerCapture} disabled={isPlayerUploading || !proofFile} style={{ padding: '12px 24px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer' }}>
@@ -1298,7 +1392,35 @@ export default function App() {
             )}
           </>
         )}
+        {isAdmin && draftMission && (
+            <>
+              {/* Real Location Marker (Fixed) */}
+              <Marker position={[draftMission.real_lat, draftMission.real_lng]} icon={createDestinationIcon()} zIndexOffset={500} opacity={0.7} />
 
+              {/* Draggable Fake Center Marker */}
+              <Marker
+                  draggable={true}
+                  eventHandlers={{
+                    drag: (e) => setDraftMission({ ...draftMission, display_lat: e.target.getLatLng().lat, display_lng: e.target.getLatLng().lng })
+                  }}
+                  position={[draftMission.display_lat, draftMission.display_lng]}
+                  zIndexOffset={600}
+              >
+                <Popup>
+                  <div style={{ textAlign: 'center', minWidth: '130px' }}>
+                    <strong style={{ color: '#111', display: 'block' }}>🎯 Nep Zoekcentrum</strong>
+                    <span style={{ fontSize: '11px', color: '#666' }}>Sleep hier om te verplaatsen waar spelers het zoeken</span>
+                  </div>
+                </Popup>
+              </Marker>
+
+              <SmoothCircle
+                  center={[draftMission.display_lat, draftMission.display_lng]}
+                  radius={MISSION_MAX_RADIUS_METERS}
+                  pathOptions={{ fillColor: 'rgba(255, 165, 0, 0.2)', color: 'orange', weight: 2, dashArray: '5, 5' }}
+              />
+            </>
+        )}
         {isAdmin && draftDestination && (
           <>
             <Marker position={[draftDestination.real_lat, draftDestination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500} opacity={0.6} />
@@ -1379,21 +1501,26 @@ export default function App() {
                 const dotColor = getSegmentColor(log.created_at);
                 const ageMinutes = Math.round((Date.now() - new Date(log.created_at).getTime()) / 60000);
 
+                // Zoek de speler die dit punt heeft geüpload
+                const uploader = users.find(u => u.id === log.user_id);
+                const uploaderName = uploader ? uploader.name : 'Macchina';
+
                 return (
-                  <CircleMarker
-                    key={log.id || index}
-                    center={[lat, lng]}
-                    radius={5}
-                    pathOptions={{ fillColor: dotColor, color: '#111', weight: 1.5, fillOpacity: 1 }}
-                  >
-                    <Popup>
-                      <div style={{ fontSize: '11px', textAlign: 'center' }}>
-                        <strong>Punt #{index + 1}</strong><br />
-                        {log.created_at ? new Date(log.created_at).toLocaleTimeString() : ''}<br />
-                        <span style={{ color: '#aaa' }}>({ageMinutes}m geleden)</span>
-                      </div>
-                    </Popup>
-                  </CircleMarker>
+                    <CircleMarker
+                        key={log.id || index}
+                        center={[lat, lng]}
+                        radius={5}
+                        pathOptions={{ fillColor: dotColor, color: '#111', weight: 1.5, fillOpacity: 1 }}
+                    >
+                      <Popup>
+                        <div style={{ fontSize: '11px', textAlign: 'center' }}>
+                          <strong>Punt #{index + 1}</strong><br />
+                          <span style={{ color: '#d4af37', fontWeight: 'bold' }}>👤 {uploaderName}</span><br />
+                          {log.created_at ? new Date(log.created_at).toLocaleTimeString() : ''}<br />
+                          <span style={{ color: '#aaa' }}>({ageMinutes}m geleden)</span>
+                        </div>
+                      </Popup>
+                    </CircleMarker>
                 );
               })}
             </>
@@ -1409,102 +1536,189 @@ export default function App() {
          />
        ))}
 
-        {missions.map((mission) => {
-          const reactKey = `${mission.id}-${mission.status}`;
-          const targetUser = users.find(u => u.id === mission.user_id);
-          const portraitUrl = targetUser?.avatar_url || mission.image_url;
+        {missions.filter(m => !m.team_id).map((baseMission) => {
+          const completions = missions.filter(m => m.team_id && m.lat === baseMission.lat && m.lng === baseMission.lng);
+          const myTeamCompletion = currentTeam ? completions.find(c => c.team_id === currentTeam.id) : null;
+          const reactKey = `mission-${baseMission.id}`;
 
-          if (mission.status === 'available') {
+          // ----- ADMIN VIEW (Unchanged) -----
+          if (isAdmin) {
+            const hasPendingReviews = completions.some(c => c.status === 'pending');
+            const markerColor = hasPendingReviews ? '#ffd700' : '#8b0000';
             return (
-              <Marker
-                key={reactKey}
-                position={[mission.lat, mission.lng]}
-                icon={createPortraitIcon(portraitUrl, '#8b0000')}
-              >
-                <Popup>
-                  <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <OvalAvatar src={portraitUrl} name={mission.title} width={60} height={80} border="3px solid #8b0000" />
-                    <strong style={{ fontSize: '16px', marginTop: '6px', color: '#ff4d4d' }}>{mission.title}</strong>
-                    <span style={{ fontSize: '11px', color: '#aaa', fontStyle: 'italic' }}>Gijzelaar / Gevangen Mafioso</span>
-
-                    {isAdmin ? (
-                      <>
-                        <button onClick={() => handleApproveCapture(mission.id)} style={{ width: '100%', marginTop: '10px', background: '#d4af37', color: 'black', fontWeight: 'bold', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Admin: Directe Redding</button>
-                        <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '5px', background: '#8b0000', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Admin: Wis Dossier</button>
-                      </>
-                    ) : currentTeam ? (
-                      <button onClick={() => setCaptureMission(mission)} style={{ width: '100%', marginTop: '10px', background: '#8b0000', color: 'white', border: '1px solid #ff4d4d', padding: '8px', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px', textTransform: 'uppercase' }}>Herover Mafioso</button>
-                    ) : (
-                      <span style={{ fontSize: '11px', color: '#888', fontStyle: 'italic', display: 'block', marginTop: '5px' }}>Sluit je aan bij een crew om mafioso te redden</span>
-                    )}
-                  </div>
-                </Popup>
-              </Marker>
-            );
-          } else if (mission.status === 'pending') {
-            return (
-              <Marker
-                key={reactKey}
-                position={[mission.lat, mission.lng]}
-                icon={createPortraitIcon(portraitUrl, '#ffd700')}
-              >
-                <Popup>
-                  <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <strong style={{ color: '#ffd700' }}>Redding Verifiëren: {mission.title}</strong>
-                    <div style={{ margin: '8px 0' }}>
-                      <OvalAvatar src={portraitUrl} name={mission.title} width={50} height={66} border="2px solid #ffd700" />
-                    </div>
-                    {mission.proof_url && <img src={mission.proof_url} alt="Bewijs" style={{ width: '200px', borderRadius: '8px', display: 'block', border: '1px solid #ffd700' }} />}
-                    {isAdmin ? (
-                      <div style={{ display: 'flex', gap: '5px', marginTop: '10px', width: '100%' }}>
-                        <button onClick={() => handleApproveCapture(mission.id)} style={{ flex: 1, background: '#28a745', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px', fontWeight: 'bold' }}>Goedkeuren</button>
-                        <button onClick={() => handleRejectCapture(mission.id)} style={{ flex: 1, background: '#8b0000', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Afkeuren</button>
+                <Marker key={reactKey} position={[baseMission.lat, baseMission.lng]} icon={createPortraitIcon(baseMission.image_url, markerColor)}>
+                  <Popup>
+                    {/* Admin popup code remains identical */}
+                    <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '220px' }}>
+                      {baseMission.image_url && (
+                          <img src={baseMission.image_url} alt="Locatie" onClick={() => setExpandedImage(baseMission.image_url)} style={{ width: '80px', height: '80px', objectFit: 'cover', border: `2px solid ${markerColor}`, borderRadius: '8px', cursor: 'zoom-in', marginBottom: '8px' }} />
+                      )}
+                      <strong style={{ fontSize: '15px', color: markerColor }}>{baseMission.title} {hasPendingReviews ? '(Actie Vereist)' : '(Admin)'}</strong>
+                      <div style={{ width: '100%', marginTop: '10px', background: '#1a1a1a', padding: '8px', borderRadius: '6px', border: '1px solid #333' }}>
+                        <strong style={{ fontSize: '12px', color: '#d4af37' }}>Team Inzendingen ({completions.length})</strong>
+                        {completions.map(c => {
+                          const team = teams.find(t => t.id === c.team_id);
+                          return (
+                              <div key={c.id} style={{ borderTop: '1px solid #333', marginTop: '6px', paddingTop: '6px', textAlign: 'left' }}>
+                                <span style={{ fontSize: '12px', color: team?.color || '#fff', fontWeight: 'bold' }}>Capo {team?.driver_name}</span>
+                                <span style={{ fontSize: '11px', color: '#aaa', marginLeft: '6px' }}>({c.status})</span>
+                                {c.proof_url && <img src={c.proof_url} alt="Bewijs" onClick={() => setExpandedImage(c.proof_url)} style={{ width: '100%', marginTop: '4px', borderRadius: '4px', cursor: 'zoom-in', border: `1px solid ${c.status === 'captured' ? '#28a745' : '#ffd700'}` }} />}
+                                {c.status === 'pending' && (
+                                    <div style={{ display: 'flex', gap: '5px', marginTop: '6px' }}>
+                                      <button onClick={() => handleApproveCapture(c.id)} style={{ flex: 1, background: '#28a745', color: 'white', border: 'none', padding: '4px', cursor: 'pointer', borderRadius: '3px', fontSize: '11px' }}>✅ Goedkeuren</button>
+                                      <button onClick={() => handleRejectCapture(c.id)} style={{ flex: 1, background: '#8b0000', color: 'white', border: 'none', padding: '4px', cursor: 'pointer', borderRadius: '3px', fontSize: '11px' }}>❌ Afkeuren</button>
+                                    </div>
+                                )}
+                              </div>
+                          );
+                        })}
                       </div>
-                    ) : (
-                      <p style={{ marginTop: '10px', fontStyle: 'italic', color: '#aaa', fontSize: '12px' }}>Wachten op Don's bevestiging van de redding...</p>
-                    )}
-                  </div>
-                </Popup>
-              </Marker>
-            );
-          } else {
-            const capturingTeam = teams.find(t => t.id === mission.team_id);
-            const teamColor = capturingTeam?.color || '#28a745';
-
-            return (
-              <Marker
-                key={reactKey}
-                position={[mission.lat, mission.lng]}
-                icon={createCapturedCheckIcon(portraitUrl, teamColor)}
-              >
-                <Popup>
-                  <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <strong style={{ color: '#28a745' }}>Mafioso Gered: {mission.title}</strong>
-                    <span style={{ fontSize: '11px', color: '#aaa', marginBottom: '8px' }}>Heroverd door Capo {capturingTeam ? `${capturingTeam.driver_name}'s Crew` : 'Famiglia'}</span>
-
-                    <div style={{ margin: '4px 0 8px 0' }}>
-                      <OvalAvatar src={portraitUrl} name={mission.title} width={45} height={60} border={`2px solid ${teamColor}`} />
+                      <button onClick={() => handleDeleteMission(baseMission.id, baseMission.lat, baseMission.lng)} style={{ width: '100%', marginTop: '10px', background: '#8b0000', color: 'white', border: 'none', padding: '6px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px' }}>🗑️ Wis Missie Voor Iedereen</button>
                     </div>
-
-                    {mission.proof_url ? (
-                      <div style={{ marginTop: '6px' }}>
-                        <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px', color: '#ffd700' }}>Fotobewijs van Redding:</div>
-                        <img src={mission.proof_url} alt="Bewijs" style={{ width: '200px', borderRadius: '8px', display: 'block', border: '1px solid #444' }} />
-                      </div>
-                    ) : (
-                      <p style={{ marginTop: '10px', fontStyle: 'italic', fontSize: '12px', color: '#666' }}>Geen fotobewijs geleverd.</p>
-                    )}
-
-                    {isAdmin && (
-                      <button onClick={() => handleDeleteMission(mission.id)} style={{ width: '100%', marginTop: '10px', background: '#8b0000', color: 'white', border: 'none', padding: '8px', cursor: 'pointer', borderRadius: '4px' }}>Wis Dossier</button>
-                    )}
-                  </div>
-                </Popup>
-              </Marker>
+                  </Popup>
+                </Marker>
             );
           }
+
+          // ----- PLAYER PROXIMITY LOGIC -----
+          const distance = (playerLat !== null && playerLng !== null)
+              ? calculateDistanceMeters(playerLat, playerLng, baseMission.lat, baseMission.lng)
+              : 9999;
+
+          // 1. Completed checkmark
+          if (myTeamCompletion && myTeamCompletion.status === 'captured') {
+            return (
+                <Marker key={reactKey} position={[baseMission.lat, baseMission.lng]} icon={createCapturedCheckIcon(baseMission.image_url, currentTeam?.color || '#28a745')}>
+                  <Popup>
+                    <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <strong style={{ color: '#28a745' }}>Missie Voltooid!</strong>
+                      <span style={{ fontSize: '11px', color: '#aaa', marginBottom: '8px' }}>Jouw crew heeft deze locatie bereikt.</span>
+                    </div>
+                  </Popup>
+                </Marker>
+            );
+          }
+
+          // 2. Pending verification
+          if (myTeamCompletion && myTeamCompletion.status === 'pending') {
+            return (
+                <Marker key={reactKey} position={[baseMission.lat, baseMission.lng]} icon={createPortraitIcon(baseMission.image_url, '#ffd700')}>
+                  <Popup>
+                    <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <strong style={{ color: '#ffd700' }}>Bewijs Verifiëren</strong>
+                      <p style={{ marginTop: '10px', fontStyle: 'italic', color: '#aaa', fontSize: '12px' }}>Jouw bewijs is geüpload. Wachten op de Don...</p>
+                    </div>
+                  </Popup>
+                </Marker>
+            );
+          }
+
+          // 3. Close enough (<= 50m): Reveal exact image marker
+          if (distance <= MISSION_REVEAL_THRESHOLD_METERS) {
+            return (
+                <Marker key={reactKey} position={[baseMission.lat, baseMission.lng]} icon={createPortraitIcon(baseMission.image_url, '#8b0000')}>
+                  <Popup>
+                    <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      {baseMission.image_url && (
+                          <img src={baseMission.image_url} alt="Locatie" onClick={() => setExpandedImage(baseMission.image_url)} style={{ width: '100px', height: '100px', objectFit: 'cover', border: '2px solid #8b0000', borderRadius: '8px', cursor: 'zoom-in', marginBottom: '8px' }} />
+                      )}
+                      <strong style={{ fontSize: '16px', color: '#ff4d4d' }}>{baseMission.title}</strong>
+                      <span style={{ fontSize: '11px', color: '#aaa', fontStyle: 'italic' }}>Tik op de foto om te vergroten</span>
+
+                      {currentTeam ? (
+                          <button onClick={() => setCaptureMission(baseMission)} style={{ width: '100%', marginTop: '10px', background: '#8b0000', color: 'white', border: '1px solid #ff4d4d', padding: '8px', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px', textTransform: 'uppercase' }}>Bewijs Uploaden</button>
+                      ) : (
+                          <span style={{ fontSize: '11px', color: '#888', fontStyle: 'italic', display: 'block', marginTop: '5px' }}>Sluit je aan bij een crew</span>
+                      )}
+                    </div>
+                  </Popup>
+                </Marker>
+            );
+          }
+
+          // 4. Further away (> 50m): Shrink radius AND lerp circle center toward real destination
+          const clampedDist = Math.max(MISSION_REVEAL_THRESHOLD_METERS, Math.min(MISSION_MAX_RADIUS_METERS, distance));
+
+          // Progress factor t: 0 when far away (500m), 1 when close (50m)
+          const t = (MISSION_MAX_RADIUS_METERS - clampedDist) / (MISSION_MAX_RADIUS_METERS - MISSION_REVEAL_THRESHOLD_METERS);
+
+          const fakeLat = baseMission.display_lat ?? baseMission.lat;
+          const fakeLng = baseMission.display_lng ?? baseMission.lng;
+
+          // Smoothly interpolate center coordinates
+          const lerpedLat = fakeLat + (baseMission.lat - fakeLat) * t;
+          const lerpedLng = fakeLng + (baseMission.lng - fakeLng) * t;
+
+          return (
+              <SmoothCircle
+                  key={reactKey}
+                  center={[lerpedLat, lerpedLng]}
+                  radius={clampedDist}
+                  pathOptions={{ fillColor: 'rgba(255, 0, 0, 0.2)', color: '#ff4d4d', weight: 2 }}
+              >
+                <Popup>
+                  <div style={{ textAlign: 'center' }}>
+                    <strong style={{ color: '#ff4d4d' }}>❓ Zoekgebied</strong>
+                    <p style={{ fontSize: '11px', color: '#aaa' }}>Kom dichterbij ({Math.round(distance)}m) om de locatie te ontdekken.</p>
+                  </div>
+                </Popup>
+              </SmoothCircle>
+          );
         })}
       </MapContainer>
+      {/* 📍 ADMIN TRACKING CONTROLS */}
+      {isAdmin && teams && teams.length > 0 && (
+          <div style={{
+            position: 'absolute',
+            bottom: '30px', // Moved from top to bottom
+            left: '12px',   // Moved from right to left
+            zIndex: 1000,
+            background: '#1a1a1a',
+            padding: '15px',
+            borderRadius: '8px',
+            border: '1px solid #333',
+            color: 'white',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.8)'
+          }}>
+            <h4 style={{ margin: '0 0 10px 0', color: '#d4af37' }}>Locatie Tracking</h4>
+
+            {teams.map((team) => (
+                <div key={team.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '15px' }}>
+        <span style={{ color: team.color || '#fff', fontWeight: 'bold' }}>
+          Capo {team.driver_name}
+        </span>
+
+                  <button
+                      onClick={() => handleToggleTracking(team.id, team.is_tracking_active)}
+                      style={{
+                        background: team.is_tracking_active ? '#28a745' : '#444',
+                        color: 'white',
+                        border: 'none',
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: 'bold'
+                      }}
+                  >
+                    {team.is_tracking_active ? '📍 AAN' : 'UIT'}
+                  </button>
+                </div>
+            ))}
+          </div>
+      )}
+      {expandedImage && (
+          <div
+              onClick={() => setExpandedImage(null)}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', cursor: 'zoom-out' }}
+          >
+            <img
+                src={expandedImage}
+                alt="Vergroot"
+                style={{ maxWidth: '100%', maxHeight: '100%', border: '2px solid #d4af37', borderRadius: '8px', objectFit: 'contain' }}
+            />
+          </div>
+      )}
     </div>
   );
 }
