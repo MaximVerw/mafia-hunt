@@ -37,10 +37,10 @@ const calculateDistanceMeters = (lat1: number, lon1: number, lat2: number, lon2:
 
   return R * c;
 };
-const compressImage = async (imageFile: File) => {
+const compressImage = async (imageFile: File, customOptions?: { maxSizeMB: number; maxWidthOrHeight: number }) => {
   const options = {
-    maxSizeMB: 0.03,
-    maxWidthOrHeight: 600,
+    maxSizeMB: customOptions?.maxSizeMB ?? 0.03,
+    maxWidthOrHeight: customOptions?.maxWidthOrHeight ?? 600,
     useWebWorker: true,
   };
 
@@ -157,7 +157,7 @@ const createDestinationIcon = (imageUrl?: string | null) => L.divIcon({
       width: 50px;
       height: 50px;
       border-radius: 50%;
-      border: 3px solid #00ffff;
+      border: 3px solid #28a745;
       background: #111;
       overflow: hidden;
       box-shadow: 0px 4px 12px rgba(0,0,0,0.9);
@@ -261,24 +261,38 @@ const getOrCreateDeviceId = () => {
 };
 
 const myDeviceId = getOrCreateDeviceId();
+
 function DestinationEdgePointer({ destination, draftDestination, isAdmin, hasUnlockedDestination }: { destination: any, draftDestination: any, isAdmin: boolean, hasUnlockedDestination: boolean }) {
   const map = useMap();
   const containerRef = useRef<HTMLDivElement>(null);
   const [arrowData, setArrowData] = useState<{ x: number, y: number, angle: number } | null>(null);
 
-  // Hide completely for players if they haven't unlocked it yet
-  if (!isAdmin && !hasUnlockedDestination) return null;
-
-  let targetLat: number | null = null;
-  let targetLng: number | null = null;
-  let radiusMeters = 500;
-
-  // Prevent Leaflet from swallowing click/scroll events on the custom arrow
   useEffect(() => {
     if (!containerRef.current) return;
     L.DomEvent.disableClickPropagation(containerRef.current);
     L.DomEvent.disableScrollPropagation(containerRef.current);
   }, []);
+
+  // Determine target coordinates based on admin mode or unlocked destination status
+  let targetLat: number | null = null;
+  let targetLng: number | null = null;
+  let radiusMeters = 500;
+
+  if (isAdmin) {
+    if (draftDestination) {
+      targetLat = draftDestination.real_lat;
+      targetLng = draftDestination.real_lng;
+      radiusMeters = draftDestination.radius_meters || 500;
+    } else if (destination) {
+      targetLat = destination.real_lat ?? destination.lat;
+      targetLng = destination.real_lng ?? destination.lng;
+      radiusMeters = destination.radius_meters || 500;
+    }
+  } else if (hasUnlockedDestination && destination) {
+    targetLat = destination.real_lat ?? destination.lat;
+    targetLng = destination.real_lng ?? destination.lng;
+    radiusMeters = destination.radius_meters || 500;
+  }
 
   useEffect(() => {
     if (targetLat === null || targetLng === null || isNaN(targetLat) || isNaN(targetLng)) {
@@ -342,6 +356,8 @@ function DestinationEdgePointer({ destination, draftDestination, isAdmin, hasUnl
     };
   }, [targetLat, targetLng, map]);
 
+  // Conditional early returns safely placed AFTER all hooks
+  if (!isAdmin && !hasUnlockedDestination) return null;
   if (!arrowData || targetLat === null || targetLng === null) return null;
 
   const handleZoomToZone = () => {
@@ -361,7 +377,7 @@ function DestinationEdgePointer({ destination, draftDestination, isAdmin, hasUnl
             zIndex: 1500,
             cursor: 'pointer',
             background: '#161616',
-            border: '2px solid #00ffff',
+            border: '2px solid #28a745',
             borderRadius: '50%',
             width: '42px',
             height: '42px',
@@ -375,7 +391,7 @@ function DestinationEdgePointer({ destination, draftDestination, isAdmin, hasUnl
         <div style={{
           transform: `rotate(${arrowData.angle}deg)`,
           fontSize: '18px',
-          color: '#00ffff',
+          color: '#28a745',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -385,9 +401,11 @@ function DestinationEdgePointer({ destination, draftDestination, isAdmin, hasUnl
         </div>
       </div>
   );
-} function SmoothTeamMarker({ team, currentTeamId, users }: { team: any, currentTeamId?: string, users: any[] }) {
+}
+
+
+function SmoothTeamMarker({ team, currentTeamId, users }: { team: any, currentTeamId?: string, users: any[] }) {
   const markerRef = useRef<L.Marker | null>(null);
-  // Bevries de initiële positie voor JSX zodat React-Leaflet de marker niet instant verplaatst
   const [initialPos] = useState<[number, number]>([team.lat, team.lng]);
 
   const posRef = useRef<[number, number]>([team.lat, team.lng]);
@@ -399,7 +417,6 @@ function DestinationEdgePointer({ destination, draftDestination, isAdmin, hasUnl
     const targetLat = team.lat;
     const targetLng = team.lng;
 
-    // Sla animatie over als de positie niet gewijzigd is
     if (startLat === targetLat && startLng === targetLng) return;
 
     let startTime: number | null = null;
@@ -471,7 +488,6 @@ function DestinationEdgePointer({ destination, draftDestination, isAdmin, hasUnl
 function SmoothCircle({ center, radius, pathOptions, children }: { center: [number, number], radius: number, pathOptions?: any, children?: React.ReactNode }) {
   const circleRef = useRef<L.Circle | null>(null);
 
-  // Bevries begin-waarden voor React-Leaflet
   const [initialCenter] = useState<[number, number]>(center);
   const [initialRadius] = useState<number>(radius);
 
@@ -490,7 +506,7 @@ function SmoothCircle({ center, radius, pathOptions, children }: { center: [numb
 
     if (startLat === targetLat && startLng === targetLng && startRadius === targetRadius) return;
 
-    const duration = isAdmin?50:5000;
+    const duration = isAdmin ? 50 : 5000;
     let startTime: number | null = null;
 
     const animate = (time: number) => {
@@ -539,6 +555,8 @@ function SmoothCircle({ center, radius, pathOptions, children }: { center: [numb
 
 export default function App() {
   const [missions, setMissions] = useState<any[]>([]);
+  // Add this with your other state declarations
+  const [editingMissionImageFile, setEditingMissionImageFile] = useState<File | null>(null);
   const [teams, setTeams] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [destination, setDestination] = useState<any>(null);
@@ -569,7 +587,6 @@ export default function App() {
   const selectedUserForTrailRef = useRef<string>('');
   selectedUserForTrailRef.current = selectedUserForTrail;
 
-  // Find reference coordinates: user's last known location log or fallback to team car position
   const userLatestLog = locationLogs.length > 0 ? locationLogs[locationLogs.length - 1] : null;
   const playerLat = userLatestLog ? parseFloat(userLatestLog.lat) : (currentTeam?.lat || null);
   const playerLng = userLatestLog ? parseFloat(userLatestLog.lng) : (currentTeam?.lng || null);
@@ -577,15 +594,16 @@ export default function App() {
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockedModalDigits, setUnlockedModalDigits] = useState('');
   const [showCodeGuessModal, setShowCodeGuessModal] = useState(false);
-  const [guessInput, setGuessInput] = useState(['', '', '', '']);
+
+  // Refactored state for interactive tile code guessing
+  const sourceDigits = ['1', '3', '9', '9'];
+  const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [guessError, setGuessError] = useState(false);
 
-  // Find all approved completions for the active team
   const teamCapturedMissions = currentTeam
       ? missions.filter(m => m.team_id === currentTeam.id && m.status === 'captured')
       : [];
 
-  // Mission 1 gives '13', Mission 2 gives '99'
   const getTeamDigitsArray = (capturedMissions: any[]) => {
     const digits: string[] = [];
     if (capturedMissions.length > 0) digits.push('13');
@@ -596,25 +614,28 @@ export default function App() {
   const teamDigitsArr = getTeamDigitsArray(teamCapturedMissions);
   const activeTeamDigits = teamDigitsArr.join('   ');
 
-  // Destination is unlocked only if the team has correctly solved the code "1993"
   const hasUnlockedDestination = currentTeam?.code_solved === true;
 
-  // Check if new missions were approved/captured to trigger the unlock animation
-  useEffect(() => {
-    if (!currentTeam || teamCapturedMissions.length === 0) return;
-    const storageKey = `ack_missions_${currentTeam.id}`;
-    const lastAckCount = parseInt(localStorage.getItem(storageKey) || '0', 10);
+  // Determine current milestone (0, 1, or 2) based on captured missions[cite: 2]
+  const currentMilestone = teamCapturedMissions.length >= 2 ? 2 : teamCapturedMissions.length >= 1 ? 1 : 0;
 
-    if (teamCapturedMissions.length > lastAckCount) {
+  useEffect(() => {
+    if (!currentTeam || currentMilestone === 0) return;
+    const storageKey = `ack_milestone_${currentTeam.id}`;
+    const lastAckMilestone = parseInt(localStorage.getItem(storageKey) || '0', 10);
+
+    // If a new milestone is reached but not yet acknowledged, show the pop-up[cite: 2]
+    if (currentMilestone > lastAckMilestone) {
       setUnlockedModalDigits(activeTeamDigits);
       setShowUnlockModal(true);
     }
-  }, [teamCapturedMissions.length, currentTeam?.id]);
+  }, [currentMilestone, currentTeam?.id, activeTeamDigits]);
 
   const handleDismissUnlockModal = () => {
     if (!currentTeam) return;
-    const storageKey = `ack_missions_${currentTeam.id}`;
-    localStorage.setItem(storageKey, teamCapturedMissions.length.toString());
+    // Only save to localStorage when the user explicitly clicks to continue[cite: 2]
+    const storageKey = `ack_milestone_${currentTeam.id}`;
+    localStorage.setItem(storageKey, currentMilestone.toString());
     setShowUnlockModal(false);
   };
 
@@ -674,17 +695,30 @@ export default function App() {
     }
   };
 
+  const handleSelectDigit = (index: number) => {
+    if (selectedIndices.includes(index)) return;
+    if (selectedIndices.length < 4) {
+      setSelectedIndices([...selectedIndices, index]);
+    }
+  };
+
+  const handleRemoveDigit = (slotIndex: number) => {
+    const newIndices = [...selectedIndices];
+    newIndices.splice(slotIndex, 1);
+    setSelectedIndices(newIndices);
+  };
   const handleVerifyCode = async () => {
-    const enteredCode = guessInput.join('');
+    const enteredCode = selectedIndices.map(i => sourceDigits[i]).join('');
     if (enteredCode === '1993') {
       await supabase.from('teams').update({ code_solved: true }).eq('id', currentTeam.id);
       setCurrentTeam((prev: any) => ({ ...prev, code_solved: true }));
       setShowCodeGuessModal(false);
-      setGuessInput(['', '', '', '']);
+      setSelectedIndices([]);
       fetchAllData();
     } else {
       setGuessError(true);
-      setTimeout(() => setGuessError(false), 800);
+      setSelectedIndices([]); // Clears digits on wrong guess
+      setTimeout(() => setGuessError(false), 400); // Match animation time
     }
   };
 
@@ -861,13 +895,14 @@ export default function App() {
   };
 
   const [destinationImageFile, setDestinationImageFile] = useState<File | null>(null);
-
   const handlePublishMission = async () => {
     if (!draftMission || !targetImageFile) return;
     setIsAdminUploading(true);
 
-    const fileName = `target_${Math.random()}.${targetImageFile.name.split('.').pop()}`;
-    const { error } = await supabase.storage.from('proofs').upload(fileName, targetImageFile);
+    // Lighter compression for mission images
+    const compressedFile = await compressImage(targetImageFile, { maxSizeMB: 0.2, maxWidthOrHeight: 1200 });
+    const fileName = `target_${Math.random()}.${compressedFile.name.split('.').pop()}`;
+    const { error } = await supabase.storage.from('proofs').upload(fileName, compressedFile);
 
     let publicUrl = null;
     if (!error) {
@@ -890,42 +925,16 @@ export default function App() {
     setIsAdminUploading(false);
     fetchAllData();
   };
-
-  const handleCreateTarget = async () => {
-    if (!newTargetLoc || !targetImageFile) return;
-    setIsAdminUploading(true);
-
-    const fileName = `target_${Math.random()}.${targetImageFile.name.split('.').pop()}`;
-    const { error } = await supabase.storage.from('proofs').upload(fileName, targetImageFile);
-
-    let publicUrl = null;
-    if (!error) {
-      publicUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
-    }
-
-    await supabase.from('missions').insert([{
-      title: 'Geheime Locatie',
-      lat: newTargetLoc.lat,
-      lng: newTargetLoc.lng,
-      status: 'available',
-      image_url: publicUrl,
-      user_id: null
-    }]);
-
-    setNewTargetLoc(null);
-    setTargetImageFile(null);
-    setIsAdminUploading(false);
-    fetchAllData();
-  };
-
   const handlePublishDestination = async () => {
     if (!draftDestination) return;
     setIsAdminUploading(true);
 
     let publicUrl = draftDestination.image_url || null;
     if (destinationImageFile) {
-      const fileName = `dest_${Math.random()}.${destinationImageFile.name.split('.').pop()}`;
-      const { error } = await supabase.storage.from('proofs').upload(fileName, destinationImageFile);
+      // Lighter compression for destination images
+      const compressedFile = await compressImage(destinationImageFile, { maxSizeMB: 0.2, maxWidthOrHeight: 1200 });
+      const fileName = `dest_${Math.random()}.${compressedFile.name.split('.').pop()}`;
+      const { error } = await supabase.storage.from('proofs').upload(fileName, compressedFile);
       if (!error) {
         publicUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
       }
@@ -1259,7 +1268,7 @@ export default function App() {
                 )}
               </div>
 
-              {currentTeam && (
+              {currentTeam && teamCapturedMissions.length > 0 && (
                   <div
                       onClick={() => {
                         if (teamCapturedMissions.length >= 2 && !currentTeam.code_solved) {
@@ -1289,7 +1298,7 @@ export default function App() {
                     }
                   `}</style>
                     <span style={{ fontSize: '10px', color: currentTeam.code_solved ? '#28a745' : '#ff4d4d', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '2px' }}>
-                    {currentTeam.code_solved ? '🔓 Bestemming Ontgrendeld!' : teamCapturedMissions.length >= 2 ? 'Tik om code te raden!' : `🩸 Cijfers (${teamCapturedMissions.length}/2 Missies)`}
+                    {currentTeam.code_solved ? '🔓 Gijzelaars Gelocaliseerd!' : teamCapturedMissions.length >= 2 ? 'Tik om code te raden!' : `🩸 Cijfers (${teamCapturedMissions.length}/2 Missies)`}
                   </span>
                     <div style={{
                       fontSize: '22px',
@@ -1299,7 +1308,7 @@ export default function App() {
                       fontFamily: 'Courier New, monospace',
                       textShadow: currentTeam.code_solved ? '0 0 8px rgba(40, 167, 69, 0.8)' : '0 0 8px rgba(255, 0, 0, 0.8)'
                     }}>
-                      {teamCapturedMissions.length === 0 ? '_ _   _ _' : teamCapturedMissions.length === 1 ? '13   _ _' : '13   99'}
+                      {currentTeam.code_solved ? '1993' : teamCapturedMissions.length === 1 ? '13   _ _' : '13   99'}
                     </div>
                   </div>
               )}
@@ -1336,9 +1345,9 @@ export default function App() {
                   style={{
                     padding: '10px 14px',
                     background: '#2c3e50',
-                    color: '#00ffff',
+                    color: '#28a745',
                     cursor: 'pointer',
-                    border: '1px solid #00ffff',
+                    border: '1px solid #28a745',
                     fontWeight: 'bold',
                     borderRadius: '4px',
                     letterSpacing: '1px',
@@ -1382,7 +1391,7 @@ export default function App() {
                       style={{
                         flex: 1,
                         padding: '6px',
-                        background: adminActionMode === 'destination' ? '#00ffff' : '#222',
+                        background: adminActionMode === 'destination' ? '#28a745' : '#222',
                         color: adminActionMode === 'destination' ? 'black' : '#aaa',
                         border: '1px solid #444',
                         borderRadius: '4px',
@@ -1477,26 +1486,62 @@ export default function App() {
             </div>
         )}
         {isAdmin && editingMission && (
-            <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', gap: '15px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', alignItems: 'center' }}>
-              <div style={{ color: '#ffd700', fontSize: '13px', fontWeight: 'bold' }}>
-                🛠️ Zoekcentrum Bewerken<br/>
-                <span style={{ color: '#aaa', fontSize: '11px', fontWeight: 'normal' }}>Sleep de oranje marker op de kaart.</span>
+            <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', minWidth: '280px' }}>
+              <div style={{ color: '#ffd700', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}>
+                🛠️ Zoekcentrum & Foto Bewerken<br/>
+                <span style={{ color: '#aaa', fontSize: '11px', fontWeight: 'normal' }}>Sleep de oranje marker of upload een nieuwe foto.</span>
               </div>
-              <button onClick={async () => {
-                await supabase.from('missions').update({
-                  display_lat: editingMission.display_lat,
-                  display_lng: editingMission.display_lng
-                }).eq('id', editingMission.id);
-                setEditingMission(null);
-                fetchAllData();
-              }} style={{ padding: '10px 15px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                ✅ Opslaan
-              </button>
-              <button onClick={() => setEditingMission(null)} style={{ padding: '10px 15px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                ❌ Annuleren
-              </button>
+
+              {editingMission.image_url && (
+                  <div style={{ textAlign: 'center' }}>
+                    <img src={editingMission.image_url} alt="Huidig doel" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #d4af37' }} />
+                  </div>
+              )}
+
+              <div>
+                <label style={{ fontSize: '11px', color: '#aaa', display: 'block', marginBottom: '4px' }}>Nieuwe Foto (Optioneel)</label>
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setEditingMissionImageFile(e.target.files ? e.target.files[0] : null)}
+                    style={{ width: '100%', color: '#e0e0e0', fontSize: '11px' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                <button onClick={async () => {
+                  setIsAdminUploading(true);
+                  let publicUrl = editingMission.image_url;
+
+                  if (editingMissionImageFile) {
+                    const compressedFile = await compressImage(editingMissionImageFile, { maxSizeMB: 0.2, maxWidthOrHeight: 1200 });
+                    const fileName = `target_${Math.random()}.${compressedFile.name.split('.').pop()}`;
+                    const { error } = await supabase.storage.from('proofs').upload(fileName, compressedFile);
+                    if (!error) {
+                      publicUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
+                    }
+                  }
+
+                  await supabase.from('missions').update({
+                    display_lat: editingMission.display_lat,
+                    display_lng: editingMission.display_lng,
+                    image_url: publicUrl
+                  }).eq('id', editingMission.id);
+
+                  setEditingMission(null);
+                  setEditingMissionImageFile(null);
+                  setIsAdminUploading(false);
+                  fetchAllData();
+                }} disabled={isAdminUploading} style={{ flex: 1, padding: '8px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  {isAdminUploading ? 'Bezig...' : '✅ Opslaan'}
+                </button>
+                <button onClick={() => { setEditingMission(null); setEditingMissionImageFile(null); }} style={{ flex: 1, padding: '8px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  ❌ Annuleren
+                </button>
+              </div>
             </div>
         )}
+        ```[cite: 2]
         {isAdmin && draftDestination && (
             <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', minWidth: '280px' }}>
               <div style={{ color: '#ffd700', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}>
@@ -1697,9 +1742,9 @@ export default function App() {
                                           src={destination.image_url || '/destination.png'}
                                           alt="Bestemming"
                                           onClick={() => setExpandedImage(destination.image_url || '/destination.png')}
-                                          style={{ width: '100px', height: '100px', objectFit: 'cover', border: '2px solid #00ffff', borderRadius: '8px', cursor: 'zoom-in', marginBottom: '8px' }}
+                                          style={{ width: '100px', height: '100px', objectFit: 'cover', border: '2px solid #28a745', borderRadius: '8px', cursor: 'zoom-in', marginBottom: '8px' }}
                                       />
-                                      <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 BESTEMMING</strong>
+                                      <strong style={{ color: '#28a745', fontSize: '15px' }}>🏁 BESTEMMING</strong>
                                       <p style={{ fontSize: '11px', color: '#aaa', margin: '4px 0 8px' }}>Rijd naar deze exacte locatie!</p>
                                     </div>
                                   </Popup>
@@ -1711,11 +1756,11 @@ export default function App() {
                               <SmoothCircle
                                   center={center}
                                   radius={radius}
-                                  pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.15)', color: '#00ffff', weight: 2 }}
+                                  pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.15)', color: '#28a745', weight: 2 }}
                               >
                                 <Popup>
                                   <div style={{ textAlign: 'center' }}>
-                                    <strong style={{ color: '#00ffff' }}>🏁 Bestemming Zoekgebied</strong>
+                                    <strong style={{ color: '#28a745' }}>🏁 Bestemming Zoekgebied</strong>
                                     <p style={{ fontSize: '11px', color: '#aaa' }}>Kom dichterbij ({Math.round(distanceToReal)}m) om de zone te vernauwen.</p>
                                   </div>
                                 </Popup>
@@ -1727,7 +1772,7 @@ export default function App() {
                           <Marker position={[destination.real_lat, destination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500}>
                             <Popup>
                               <div style={{ textAlign: 'center', minWidth: '150px' }}>
-                                <strong style={{ color: '#00ffff', fontSize: '15px' }}>🏁 ECHTE CHECKPOINT</strong>
+                                <strong style={{ color: '#28a745', fontSize: '15px' }}>🏁 ECHTE CHECKPOINT</strong>
                                 <button onClick={handleClearDestination} style={{ width: '100%', marginTop: '4px', padding: '6px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
                                   🗑️ Wis Bestemming
                                 </button>
@@ -1748,7 +1793,7 @@ export default function App() {
                                     </div>
                                   </Popup>
                                 </Marker>
-                                <SmoothCircle center={[destination.display_lat, destination.display_lng]} radius={destination.radius_meters || 500} pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.1)', color: '#00ffff', weight: 2, dashArray: '5, 5' }} />
+                                <SmoothCircle center={[destination.display_lat, destination.display_lng]} radius={destination.radius_meters || 500} pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.1)', color: '#28a745', weight: 2, dashArray: '5, 5' }} />
                               </>
                           )}
                         </>
@@ -2089,7 +2134,7 @@ export default function App() {
                 background: 'linear-gradient(180deg, #160000 0%, #0a0a0a 100%)',
                 borderRadius: '12px',
                 padding: '30px 24px',
-                maxWidth: '360px',
+                maxWidth: '380px',
                 width: '100%',
                 textAlign: 'center',
                 boxShadow: '0 10px 40px rgba(139,0,0,0.8)',
@@ -2097,73 +2142,114 @@ export default function App() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: '16px',
-                transform: guessError ? 'translateX(10px)' : 'none',
-                transition: 'transform 0.1s ease'
+                animation: guessError ? 'shake 0.4s ease-in-out' : 'none'
               }}>
-              <span style={{ fontSize: '12px', color: '#ffd700', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                <style>{`
+              @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                20%, 60% { transform: translateX(-8px); }
+                40%, 80% { transform: translateX(8px); }
+              }
+            `}</style>
+                <span style={{ fontSize: '12px', color: '#ffd700', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>
                 🇮🇹 Laatste Test van de Don
               </span>
                 <h3 style={{ margin: 0, color: '#ff4d4d', fontSize: '18px', textTransform: 'uppercase' }}>
-                  Vul de 4-cijferige Code in
+                  Vorm de 4-cijferige Code
                 </h3>
                 <p style={{ fontSize: '11px', color: '#aaa', margin: 0, fontStyle: 'italic' }}>
-                  Gebruik de verkregen cijfers uit jullie missies (13 & 99) om de geheime combinatie te vormen.
+                  Tik op de cijfers hieronder om ze in de juiste volgorde op de onderste rij te plaatsen.
                 </p>
 
-                <div style={{ display: 'flex', gap: '10px', margin: '15px 0' }}>
-                  {guessInput.map((digit, index) => (
-                      <input
-                          key={index}
-                          id={`guess-digit-${index}`}
-                          type="text"
-                          maxLength={1}
-                          value={digit}
-                          onChange={(e) => {
-                            const val = e.target.value.replace(/[^0-9]/g, '');
-                            const newInputs = [...guessInput];
-                            newInputs[index] = val;
-                            setGuessInput(newInputs);
-
-                            if (val && index < 3) {
-                              const nextInput = document.getElementById(`guess-digit-${index + 1}`);
-                              if (nextInput) nextInput.focus();
-                            }
-                          }}
-                          style={{
-                            width: '50px',
-                            height: '60px',
-                            fontSize: '28px',
-                            textAlign: 'center',
-                            background: '#111',
-                            border: '2px solid #d4af37',
-                            borderRadius: '6px',
-                            color: '#ff1a1a',
-                            fontWeight: 'bold',
-                            fontFamily: 'Courier New, monospace'
-                          }}
-                      />
-                  ))}
+                {/* TOP ROW: Available Digits (1, 3, 9, 9) */}
+                <div style={{ display: 'flex', gap: '8px', margin: '5px 0' }}>
+                  {sourceDigits.map((digit, index) => {
+                    const isUsed = selectedIndices.includes(index);
+                    return (
+                        <button
+                            key={index}
+                            onClick={() => handleSelectDigit(index)}
+                            disabled={isUsed}
+                            style={{
+                              width: '48px',
+                              height: '56px',
+                              fontSize: '24px',
+                              background: isUsed ? '#1a1a1a' : '#111',
+                              border: `2px solid ${isUsed ? '#444' : '#d4af37'}`,
+                              borderRadius: '6px',
+                              color: isUsed ? '#555' : '#ffd700',
+                              fontWeight: 'bold',
+                              fontFamily: 'Courier New, monospace',
+                              cursor: isUsed ? 'not-allowed' : 'pointer',
+                              opacity: isUsed ? 0.4 : 1,
+                              transition: 'all 0.2s ease'
+                            }}
+                        >
+                          {digit}
+                        </button>
+                    );
+                  })}
                 </div>
 
-                <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                {/* BOTTOM ROW: Selected Code Slots */}
+                <div style={{ display: 'flex', gap: '8px', margin: '10px 0' }}>
+                  {[0, 1, 2, 3].map((slotIndex) => {
+                    const sourceIndex = selectedIndices[slotIndex];
+                    const digit = sourceIndex !== undefined ? sourceDigits[sourceIndex] : '';
+                    return (
+                        <div
+                            key={slotIndex}
+                            onClick={() => {
+                              if (sourceIndex !== undefined) handleRemoveDigit(slotIndex);
+                            }}
+                            style={{
+                              width: '48px',
+                              height: '56px',
+                              fontSize: '24px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#0a0a0a',
+                              border: `2px solid ${digit ? '#ff1a1a' : '#444'}`,
+                              borderRadius: '6px',
+                              color: '#ff1a1a',
+                              fontWeight: 'bold',
+                              fontFamily: 'Courier New, monospace',
+                              cursor: digit ? 'pointer' : 'default',
+                              boxShadow: digit ? '0 0 8px rgba(255,0,0,0.3)' : 'none'
+                            }}
+                            title={digit ? 'Klik om terug te zetten' : ''}
+                        >
+                          {digit || '_'}
+                        </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', width: '100%', marginTop: '5px' }}>
                   <button
                       onClick={handleVerifyCode}
+                      disabled={selectedIndices.length < 4}
                       style={{
                         flex: 1,
                         padding: '12px',
-                        background: '#28a745',
+                        background: selectedIndices.length === 4 ? '#28a745' : '#444',
                         color: 'white',
                         border: 'none',
                         borderRadius: '6px',
                         fontWeight: 'bold',
                         textTransform: 'uppercase',
-                        cursor: 'pointer'
+                        cursor: selectedIndices.length === 4 ? 'pointer' : 'not-allowed',
+                        opacity: selectedIndices.length === 4 ? 1 : 0.6
                       }}
                   >
                     Bevestig Code
                   </button>
                   <button
-                      onClick={() => setShowCodeGuessModal(false)}
+                      onClick={() => {
+                        setShowCodeGuessModal(false);
+                        setSelectedIndices([]);
+                      }}
                       style={{
                         padding: '12px 16px',
                         background: '#8b0000',
