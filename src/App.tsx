@@ -616,15 +616,15 @@ export default function App() {
 
   const hasUnlockedDestination = currentTeam?.code_solved === true;
 
-  // Determine current milestone (0, 1, or 2) based on captured missions[cite: 2]
   const currentMilestone = teamCapturedMissions.length >= 2 ? 2 : teamCapturedMissions.length >= 1 ? 1 : 0;
 
   useEffect(() => {
     if (!currentTeam || currentMilestone === 0) return;
-    const storageKey = `ack_milestone_${currentTeam.id}`;
+
+    // Using a new v2 key ensures it ignores any old lingering localStorage values
+    const storageKey = `ack_milestone_v2_${currentTeam.id}`;
     const lastAckMilestone = parseInt(localStorage.getItem(storageKey) || '0', 10);
 
-    // If a new milestone is reached but not yet acknowledged, show the pop-up[cite: 2]
     if (currentMilestone > lastAckMilestone) {
       setUnlockedModalDigits(activeTeamDigits);
       setShowUnlockModal(true);
@@ -633,12 +633,10 @@ export default function App() {
 
   const handleDismissUnlockModal = () => {
     if (!currentTeam) return;
-    // Only save to localStorage when the user explicitly clicks to continue[cite: 2]
-    const storageKey = `ack_milestone_${currentTeam.id}`;
+    const storageKey = `ack_milestone_v2_${currentTeam.id}`;
     localStorage.setItem(storageKey, currentMilestone.toString());
     setShowUnlockModal(false);
   };
-
   const fetchAllData = async () => {
     const [mRes, tRes, uRes, dRes] = await Promise.all([
       supabase.from('missions').select('*'),
