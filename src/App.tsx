@@ -12,17 +12,6 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 import imageCompression from 'browser-image-compression';
 
-const _getMissionDigits = (missionId: string) => {
-  let hash = 0;
-  for (let i = 0; i < missionId.length; i++) {
-    hash = (hash << 5) - hash + missionId.charCodeAt(i);
-    hash |= 0;
-  }
-  const absVal = Math.abs(hash);
-  const d1 = (absVal % 9) + 1;
-  const d2 = (Math.floor(absVal / 10) % 9) + 1;
-  return `${d1}${d2}`;
-};
 const calculateDistanceMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 6371e3; // Earth radius in meters
   const φ1 = (lat1 * Math.PI) / 180;
@@ -573,7 +562,6 @@ export default function App() {
   const [adminActionMode, setAdminActionMode] = useState<'mission' | 'destination'>('mission');
 
   const [showAdminRoster, setShowAdminRoster] = useState(false);
-  const [newTargetLoc, setNewTargetLoc] = useState<{lat: number, lng: number} | null>(null);
   const [draftMission, setDraftMission] = useState<{ real_lat: number; real_lng: number; display_lat: number; display_lng: number } | null>(null);
   const [targetImageFile, setTargetImageFile] = useState<File | null>(null);
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
@@ -714,7 +702,7 @@ export default function App() {
       fetchAllData();
     } else {
       setGuessError(true);
-      setSelectedIndices();
+      setSelectedIndices([]);
       setTimeout(() => setGuessError(false), 400);
     }
   };
@@ -874,17 +862,6 @@ export default function App() {
     setIsUploadingEmote(false);
   };
 
-  const _handleSetDestination = () => {
-    if (!newTargetLoc) return;
-    setDraftDestination({
-      real_lat: newTargetLoc.lat,
-      real_lng: newTargetLoc.lng,
-      display_lat: newTargetLoc.lat + 0.002,
-      display_lng: newTargetLoc.lng + 0.002,
-      radius_meters: 500
-    });
-    setNewTargetLoc(null);
-  };
 
   const calculateEdgePosition = (lat: number, lng: number, radiusMeters: number): [number, number] => {
     const dLng = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180));
