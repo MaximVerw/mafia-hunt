@@ -12,7 +12,7 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 import imageCompression from 'browser-image-compression';
 
-const getMissionDigits = (missionId: string) => {
+const _getMissionDigits = (missionId: string) => {
   let hash = 0;
   for (let i = 0; i < missionId.length; i++) {
     hash = (hash << 5) - hash + missionId.charCodeAt(i);
@@ -555,12 +555,11 @@ function SmoothCircle({ center, radius, pathOptions, children }: { center: [numb
 
 export default function App() {
   const [missions, setMissions] = useState<any[]>([]);
-  // Add this with your other state declarations
   const [editingMissionImageFile, setEditingMissionImageFile] = useState<File | null>(null);
   const [teams, setTeams] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [destination, setDestination] = useState<any>(null);
-  const [draftDestination, setDraftDestination] = useState<{real_lat: number, real_lng: number, display_lat: number, display_lng: number, radius_meters: number} | null>(null);
+  const [draftDestination, setDraftDestination] = useState<{real_lat: number, real_lng: number, display_lat: number, display_lng: number, radius_meters: number, image_url?: string | null} | null>(null);
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentTeam, setCurrentTeam] = useState<any>(null);
@@ -595,7 +594,6 @@ export default function App() {
   const [unlockedModalDigits, setUnlockedModalDigits] = useState('');
   const [showCodeGuessModal, setShowCodeGuessModal] = useState(false);
 
-  // Refactored state for interactive tile code guessing
   const sourceDigits = ['1', '3', '9', '9'];
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [guessError, setGuessError] = useState(false);
@@ -621,7 +619,6 @@ export default function App() {
   useEffect(() => {
     if (!currentTeam || currentMilestone === 0) return;
 
-    // Using a new v2 key ensures it ignores any old lingering localStorage values
     const storageKey = `ack_milestone_v2_${currentTeam.id}`;
     const lastAckMilestone = parseInt(localStorage.getItem(storageKey) || '0', 10);
 
@@ -637,6 +634,7 @@ export default function App() {
     localStorage.setItem(storageKey, currentMilestone.toString());
     setShowUnlockModal(false);
   };
+
   const fetchAllData = async () => {
     const [mRes, tRes, uRes, dRes] = await Promise.all([
       supabase.from('missions').select('*'),
@@ -646,26 +644,26 @@ export default function App() {
     ]);
 
     if (mRes.data) {
-      setMissions(prev => {
+      setMissions((prev: any) => {
         if (JSON.stringify(prev) !== JSON.stringify(mRes.data)) return mRes.data;
         return prev;
       });
     }
     if (tRes.data) {
-      setTeams(prev => {
+      setTeams((prev: any) => {
         if (JSON.stringify(prev) !== JSON.stringify(tRes.data)) return tRes.data;
         return prev;
       });
     }
     if (uRes.data) {
-      setUsers(prev => {
+      setUsers((prev: any) => {
         if (JSON.stringify(prev) !== JSON.stringify(uRes.data)) return uRes.data;
         return prev;
       });
     }
 
     const newDest = dRes.data || null;
-    setDestination(prev => {
+    setDestination((prev: any) => {
       if (JSON.stringify(prev) !== JSON.stringify(newDest)) return newDest;
       return prev;
     });
@@ -682,10 +680,10 @@ export default function App() {
           return;
         }
 
-        setCurrentUser(prev => (prev?.id === user.id && prev?.team_id === user.team_id ? prev : user));
+        setCurrentUser((prev: any) => (prev?.id === user.id && prev?.team_id === user.team_id ? prev : user));
         if (user.team_id) {
           const team = tRes.data?.find(t => t.id === user.team_id);
-          setCurrentTeam(prev => (prev?.id === team?.id ? prev : (team || null)));
+          setCurrentTeam((prev: any) => (prev?.id === team?.id ? prev : (team || null)));
         } else {
           setCurrentTeam(null);
         }
@@ -705,6 +703,7 @@ export default function App() {
     newIndices.splice(slotIndex, 1);
     setSelectedIndices(newIndices);
   };
+
   const handleVerifyCode = async () => {
     const enteredCode = selectedIndices.map(i => sourceDigits[i]).join('');
     if (enteredCode === '1993') {
@@ -715,8 +714,8 @@ export default function App() {
       fetchAllData();
     } else {
       setGuessError(true);
-      setSelectedIndices([]); // Clears digits on wrong guess
-      setTimeout(() => setGuessError(false), 400); // Match animation time
+      setSelectedIndices();
+      setTimeout(() => setGuessError(false), 400);
     }
   };
 
@@ -762,7 +761,7 @@ export default function App() {
           })
       );
 
-      setCurrentTeam((prevTeam) => {
+      setCurrentTeam((prevTeam: any) => {
         if (!prevTeam) return prevTeam;
         const updatedData = data.find((d) => d.id === prevTeam.id);
         return updatedData ? { ...prevTeam, ...updatedData } : prevTeam;
@@ -875,7 +874,7 @@ export default function App() {
     setIsUploadingEmote(false);
   };
 
-  const handleSetDestination = () => {
+  const _handleSetDestination = () => {
     if (!newTargetLoc) return;
     setDraftDestination({
       real_lat: newTargetLoc.lat,
@@ -897,7 +896,6 @@ export default function App() {
     if (!draftMission || !targetImageFile) return;
     setIsAdminUploading(true);
 
-    // Lighter compression for mission images
     const compressedFile = await compressImage(targetImageFile, { maxSizeMB: 0.2, maxWidthOrHeight: 1200 });
     const fileName = `target_${Math.random()}.${compressedFile.name.split('.').pop()}`;
     const { error } = await supabase.storage.from('proofs').upload(fileName, compressedFile);
@@ -923,13 +921,13 @@ export default function App() {
     setIsAdminUploading(false);
     fetchAllData();
   };
+
   const handlePublishDestination = async () => {
     if (!draftDestination) return;
     setIsAdminUploading(true);
 
     let publicUrl = draftDestination.image_url || null;
     if (destinationImageFile) {
-      // Lighter compression for destination images
       const compressedFile = await compressImage(destinationImageFile, { maxSizeMB: 0.2, maxWidthOrHeight: 1200 });
       const fileName = `dest_${Math.random()}.${compressedFile.name.split('.').pop()}`;
       const { error } = await supabase.storage.from('proofs').upload(fileName, compressedFile);
@@ -1044,7 +1042,7 @@ export default function App() {
     fetchAllData();
   };
 
-  const handleDeleteMission = async (baseMissionId: string, lat: number, lng: number) => {
+  const handleDeleteMission = async (_baseMissionId: string, lat: number, lng: number) => {
     if (!window.confirm("Deze locatiemissie permanent wissen (*Silenzio*)?")) return;
     await supabase.from('missions').delete().eq('lat', lat).eq('lng', lng);
     fetchAllData();
@@ -1539,7 +1537,6 @@ export default function App() {
               </div>
             </div>
         )}
-        ```[cite: 2]
         {isAdmin && draftDestination && (
             <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', minWidth: '280px' }}>
               <div style={{ color: '#ffd700', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}>
@@ -2159,7 +2156,6 @@ export default function App() {
                   Tik op de cijfers hieronder om ze in de juiste volgorde op de onderste rij te plaatsen.
                 </p>
 
-                {/* TOP ROW: Available Digits (1, 3, 9, 9) */}
                 <div style={{ display: 'flex', gap: '8px', margin: '5px 0' }}>
                   {sourceDigits.map((digit, index) => {
                     const isUsed = selectedIndices.includes(index);
@@ -2189,7 +2185,6 @@ export default function App() {
                   })}
                 </div>
 
-                {/* BOTTOM ROW: Selected Code Slots */}
                 <div style={{ display: 'flex', gap: '8px', margin: '10px 0' }}>
                   {[0, 1, 2, 3].map((slotIndex) => {
                     const sourceIndex = selectedIndices[slotIndex];
