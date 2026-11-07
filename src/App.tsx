@@ -81,27 +81,27 @@ const createCarIcon = (color?: string, emoteUrl?: string, emoteUpdatedAt?: strin
     const ageMs = Date.now() - new Date(emoteUpdatedAt).getTime();
     if (ageMs < 15000) {
       emoteHtml = `
-<div
-onclick="event.stopPropagation(); this.style.transform = this.style.transform === 'scale(2.5) translateY(-10px)' ? 'none' : 'scale(2.5) translateY(-10px)'; this.style.zIndex = this.style.zIndex === '3000' ? '2000' : '3000';"
-style="position: absolute; top: -65px; left: -10px; width: 60px; height: 60px; background: #111; border-radius: 8px; border: 2px solid #d4af37; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center; overflow: visible; animation: popIn 0.3s ease-out; cursor: pointer; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), z-index 0.3s ease; transform-origin: bottom center;"
-    >
-    <img src="${emoteUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;" />
-    <div style="position: absolute; bottom: -8px; left: 24px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid #d4af37;"></div>
-<div style="position: absolute; bottom: -5px; left: 26px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 6px solid #111;"></div>
-</div>
-`;
+        <div
+          onclick="event.stopPropagation(); this.style.transform = this.style.transform === 'scale(2.5) translateY(-10px)' ? 'none' : 'scale(2.5) translateY(-10px)'; this.style.zIndex = this.style.zIndex === '3000' ? '2000' : '3000';"
+          style="position: absolute; top: -65px; left: -10px; width: 60px; height: 60px; background: #111; border-radius: 8px; border: 2px solid #d4af37; padding: 2px; box-shadow: 0 4px 10px rgba(0,0,0,0.9); z-index: 2000; display: flex; align-items: center; justify-content: center; overflow: visible; animation: popIn 0.3s ease-out; cursor: pointer; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), z-index 0.3s ease; transform-origin: bottom center;"
+        >
+          <img src="${emoteUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;" />
+          <div style="position: absolute; bottom: -8px; left: 24px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid #d4af37;"></div>
+          <div style="position: absolute; bottom: -5px; left: 26px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 6px solid #111;"></div>
+        </div>
+      `;
     }
   }
 
   return L.divIcon({
     html: `
-<div style="position: relative;">
-    ${emoteHtml}
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.9)); display: block;">
-    <path fill="${color || '#b22222'}" stroke="#ffd700" stroke-width="1.2" stroke-linejoin="round" d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.04 3H5.81l1.04-3zM19 17c-.83 0-1.5-.67-1.5-1.5S18.17 14 19 14s1.5.67 1.5 1.5S19.83 17 19 17zm-14 0c-.83 0-1.5-.67-1.5-1.5S4.17 14 5 14s1.5.67 1.5 1.5S5.83 17 5 17z"/>
-</svg>
-</div>
-`,
+      <div style="position: relative;">
+        ${emoteHtml}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.9)); display: block;">
+          <path fill="${color || '#b22222'}" stroke="#ffd700" stroke-width="1.2" stroke-linejoin="round" d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.04 3H5.81l1.04-3zM19 17c-.83 0-1.5-.67-1.5-1.5S18.17 14 19 14s1.5.67 1.5 1.5S19.83 17 19 17zm-14 0c-.83 0-1.5-.67-1.5-1.5S4.17 14 5 14s1.5.67 1.5 1.5S5.83 17 5 17z"/>
+        </svg>
+      </div>
+    `,
     className: '',
     iconSize: [38, 38],
     iconAnchor: [19, 19],
@@ -110,21 +110,21 @@ style="position: absolute; top: -65px; left: -10px; width: 60px; height: 60px; b
 
 const createPortraitIcon = (avatarUrl?: string | null, borderColor: string = '#8b0000') => L.divIcon({
   html: `
-<div style="
-width: 44px;
-height: 58px;
-border-radius: 50%;
-border: 3px solid ${borderColor};
-background: #111;
-overflow: hidden;
-box-shadow: 0px 4px 10px rgba(0,0,0,0.9);
-display: flex;
-align-items: center;
-justify-content: center;
-box-sizing: border-box;
-">
-${avatarUrl && avatarUrl.trim() !== ''
-    ? `<img
+    <div style="
+      width: 44px;
+      height: 58px;
+      border-radius: 50%;
+      border: 3px solid ${borderColor};
+      background: #111;
+      overflow: hidden;
+      box-shadow: 0px 4px 10px rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    ">
+      ${avatarUrl && avatarUrl.trim() !== ''
+      ? `<img
             src="${avatarUrl}"
             alt="Gijzelaar"
             referrerpolicy="no-referrer"
@@ -132,36 +132,36 @@ ${avatarUrl && avatarUrl.trim() !== ''
             onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
           />
           <span style="display:none; font-size:24px; user-select:none;">🕶️</span>`
-    : `<span style="font-size:24px; user-select:none;">🕶️</span>`
-}
-</div>
-`,
+      : `<span style="font-size:24px; user-select:none;">🕶️</span>`
+  }
+    </div>
+  `,
   className: '',
   iconSize: [44, 58],
   iconAnchor: [22, 29],
 });
 const createDestinationIcon = (imageUrl?: string | null) => L.divIcon({
   html: `
-<div style="
-width: 50px;
-height: 50px;
-border-radius: 50%;
-border: 3px solid #28a745;
-background: #111;
-overflow: hidden;
-box-shadow: 0px 4px 12px rgba(0,0,0,0.9);
-display: flex;
-align-items: center;
-justify-content: center;
-box-sizing: border-box;
-">
-<img
-src="${imageUrl || '/destination.png'}"
-alt="Bestemming"
-style="width: 100%; height: 100%; object-fit: cover; display: block;"
-    />
+    <div style="
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 3px solid #28a745;
+      background: #111;
+      overflow: hidden;
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    ">
+      <img
+        src="${imageUrl || '/destination.png'}"
+        alt="Bestemming"
+        style="width: 100%; height: 100%; object-fit: cover; display: block;"
+      />
     </div>
-        `,
+  `,
   className: '',
   iconSize: [50, 50],
   iconAnchor: [25, 25],
@@ -169,21 +169,21 @@ style="width: 100%; height: 100%; object-fit: cover; display: block;"
 const createCapturedCheckIcon = (avatarUrl?: string | null, teamColor: string = '#28a745') => L.divIcon({
   html: `
     <div style="position: relative; width: 44px; height: 58px;">
-    <div style="
-width: 44px;
-height: 58px;
-border-radius: 50%;
-border: 3px solid ${teamColor};
-background: #111;
-overflow: hidden;
-box-shadow: 0px 4px 10px rgba(0,0,0,0.9);
-display: flex;
-align-items: center;
-justify-content: center;
-box-sizing: border-box;
-">
-${avatarUrl && avatarUrl.trim() !== ''
-    ? `<img
+      <div style="
+        width: 44px;
+        height: 58px;
+        border-radius: 50%;
+        border: 3px solid ${teamColor};
+        background: #111;
+        overflow: hidden;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      ">
+        ${avatarUrl && avatarUrl.trim() !== ''
+      ? `<img
               src="${avatarUrl}"
               alt="Geredde Mafioso"
               referrerpolicy="no-referrer"
@@ -191,11 +191,11 @@ ${avatarUrl && avatarUrl.trim() !== ''
               onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
             />
             <span style="display:none; font-size:24px; user-select:none;">🤝</span>`
-    : `<span style="font-size:24px; user-select:none;">🤝</span>`
-}
-</div>
+      : `<span style="font-size:24px; user-select:none;">🤝</span>`
+  }
+      </div>
 
-<div style="
+      <div style="
         position: absolute;
         bottom: -2px;
         right: -4px;
@@ -211,12 +211,12 @@ ${avatarUrl && avatarUrl.trim() !== ''
         color: white;
         z-index: 10;
       ">
-    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="20 6 9 17 4 12"></polyline>
-    </svg>
-</div>
-</div>
-`,
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+    </div>
+  `,
   className: '',
   iconSize: [44, 58],
   iconAnchor: [22, 29],
@@ -981,9 +981,17 @@ export default function App() {
     }
   };
 
-  // Two-step login handler
+  // Two-step login handler with device conflict prevention
   const handleWizardLogin = async () => {
     if (!loginSelectedUserId || !loginSelectedTeamId) return;
+
+    // Check if user is already claimed by another device
+    const targetUser = users.find(u => u.id === loginSelectedUserId);
+    if (targetUser && targetUser.device_id && targetUser.device_id !== myDeviceId) {
+      alert('Dit profiel is reeds geclaimd door een ander apparaat (*Silenzio*).');
+      return;
+    }
+
     await supabase.from('users').update({ team_id: loginSelectedTeamId, device_id: myDeviceId }).eq('id', loginSelectedUserId);
     localStorage.setItem('userId', loginSelectedUserId);
     fetchAllData();
@@ -1077,13 +1085,14 @@ export default function App() {
 
   if (!isAdmin && !currentUser) {
     const selectedUserObj = users.find(u => u.id === loginSelectedUserId);
+    const isAlreadyClaimed = selectedUserObj?.device_id && selectedUserObj?.device_id !== myDeviceId;
 
     return (
         <div style={{ padding: '30px 20px', backgroundColor: '#0e0e0e', color: '#e0e0e0', minHeight: '100vh', fontFamily: 'Georgia, serif' }}>
           <style>{`
-    ::placeholder { color: #888; }
-select option { background: #1a1a1a; color: #d4af37; }
-`}</style>
+          ::placeholder { color: #888; }
+          select option { background: #1a1a1a; color: #d4af37; }
+        `}</style>
           <div style={{ maxWidth: '500px', margin: '40px auto', background: '#161616', border: '2px solid #d4af37', borderRadius: '10px', padding: '30px 24px', boxShadow: '0 8px 25px rgba(0,0,0,0.9)' }}>
             <h1 style={{ color: '#d4af37', textAlign: 'center', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px', fontSize: '24px' }}>
               🇮🇹 La Cosa Nostra
@@ -1107,14 +1116,24 @@ select option { background: #1a1a1a; color: #d4af37; }
                     style={{ padding: '12px', borderRadius: '6px', border: '1px solid #444', background: '#222', color: '#d4af37', fontSize: '15px' }}
                 >
                   <option value="" disabled>-- Kies jouw naam --</option>
-                  {users.map(u => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
+                  {users.map(u => {
+                    const claimed = u.device_id && u.device_id !== myDeviceId;
+                    return (
+                        <option key={u.id} value={u.id} disabled={claimed}>
+                          {u.name} {claimed ? ' (🔒 Al geclaimd)' : ''}
+                        </option>
+                    );
+                  })}
                 </select>
+                {isAlreadyClaimed && (
+                    <span style={{ fontSize: '11px', color: '#ff4d4d', fontStyle: 'italic' }}>
+                    Dit profiel is reeds in gebruik op een ander apparaat. Vraag de Don om het te ontgrendelen.
+                  </span>
+                )}
               </div>
 
               {/* Step 2: Select Driver / Team */}
-              {loginSelectedUserId && (
+              {loginSelectedUserId && !isAlreadyClaimed && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', animation: 'fadeIn 0.3s ease-out' }}>
                     <label style={{ fontSize: '13px', color: '#ffd700', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
                       Stap 2: Kies je Capo / Wagen
@@ -1133,7 +1152,7 @@ select option { background: #1a1a1a; color: #d4af37; }
               )}
 
               {/* Action Button */}
-              {loginSelectedUserId && loginSelectedTeamId && (
+              {loginSelectedUserId && loginSelectedTeamId && !isAlreadyClaimed && (
                   <button
                       onClick={handleWizardLogin}
                       style={{
@@ -1166,14 +1185,14 @@ select option { background: #1a1a1a; color: #d4af37; }
   return (
       <div style={{ height: '100vh', width: '100vw', position: 'relative', background: '#0e0e0e' }}>
         <style>{`
-    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-    background: #181818 !important;
-    color: #e0e0e0 !important;
-    border: 1px solid #d4af37 !important;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.9) !important;
-}
-.leaflet-container { background: #0e0e0e !important; }
-`}</style>
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+          background: #181818 !important;
+          color: #e0e0e0 !important;
+          border: 1px solid #d4af37 !important;
+          box-shadow: 0 5px 15px rgba(0,0,0,0.9) !important;
+        }
+        .leaflet-container { background: #0e0e0e !important; }
+      `}</style>
 
         {!isAdmin && currentUser && (
             <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: 'calc(100vw - 24px)' }}>
@@ -1264,88 +1283,88 @@ select option { background: #1a1a1a; color: #d4af37; }
                       }}
                   >
                     <style>{`
-@keyframes pulseGlow {
-    0% { transform: scale(1); box-shadow: 0 0 5px rgba(139,0,0,0.5); }
-    50% { transform: scale(1.02); box-shadow: 0 0 15px rgba(255,0,0,0.8); }
-    100% { transform: scale(1); box-shadow: 0 0 5px rgba(139,0,0,0.5); }
-}
-`}</style>
+                    @keyframes pulseGlow {
+                      0% { transform: scale(1); box-shadow: 0 0 5px rgba(139,0,0,0.5); }
+                      50% { transform: scale(1.02); box-shadow: 0 0 15px rgba(255,0,0,0.8); }
+                      100% { transform: scale(1); box-shadow: 0 0 5px rgba(139,0,0,0.5); }
+                    }
+                  `}</style>
                     <span style={{ fontSize: '10px', color: currentTeam.code_solved ? '#28a745' : '#ff4d4d', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '2px' }}>
                     {currentTeam.code_solved ? '🔓 Gijzelaars Gelocaliseerd!' : teamCapturedMissions.length >= 2 ? 'Tik om code te raden!' : `🩸 Cijfers (${teamCapturedMissions.length}/2 Missies)`}
-</span>
-<div style={{
-    fontSize: '22px',
-    fontWeight: '900',
-    color: currentTeam.code_solved ? '#28a745' : '#ff1a1a',
-    letterSpacing: '6px',
-    fontFamily: 'Courier New, monospace',
-    textShadow: currentTeam.code_solved ? '0 0 8px rgba(40, 167, 69, 0.8)' : '0 0 8px rgba(255, 0, 0, 0.8)'
-}}>
-    {currentTeam.code_solved ? '1993' : teamCapturedMissions.length === 1 ? '13   _ _' : '13   99'}
-</div>
-</div>
-)}
+                  </span>
+                    <div style={{
+                      fontSize: '22px',
+                      fontWeight: '900',
+                      color: currentTeam.code_solved ? '#28a745' : '#ff1a1a',
+                      letterSpacing: '6px',
+                      fontFamily: 'Courier New, monospace',
+                      textShadow: currentTeam.code_solved ? '0 0 8px rgba(40, 167, 69, 0.8)' : '0 0 8px rgba(255, 0, 0, 0.8)'
+                    }}>
+                      {currentTeam.code_solved ? '1993' : teamCapturedMissions.length === 1 ? '13   _ _' : '13   99'}
+                    </div>
+                  </div>
+              )}
 
-{!isAdmin && currentTeam && showRoster && (
-    <div style={{ background: '#181818', color: '#e0e0e0', padding: '14px', border: '1px solid #d4af37', borderRadius: '8px', minWidth: '250px', boxShadow: '0px 6px 15px rgba(0,0,0,0.9)' }}>
-        <h4 style={{ margin: '0 0 10px 0', color: '#d4af37', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '13px' }}>Capo {currentTeam?.driver_name}'s Crew</h4>
-        {carPassengers.map(u => (
-            <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '10px', borderBottom: '1px solid #282828', paddingBottom: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <OvalAvatar src={u.avatar_url} name={u.name} width={30} height={40} />
-                    <span style={{ color: '#f0f0f0', fontWeight: u.id === currentUser?.id ? 'bold' : 'normal', fontSize: '13px' }}>
+              {!isAdmin && currentTeam && showRoster && (
+                  <div style={{ background: '#181818', color: '#e0e0e0', padding: '14px', border: '1px solid #d4af37', borderRadius: '8px', minWidth: '250px', boxShadow: '0px 6px 15px rgba(0,0,0,0.9)' }}>
+                    <h4 style={{ margin: '0 0 10px 0', color: '#d4af37', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '13px' }}>Capo {currentTeam?.driver_name}'s Crew</h4>
+                    {carPassengers.map(u => (
+                        <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '10px', borderBottom: '1px solid #282828', paddingBottom: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <OvalAvatar src={u.avatar_url} name={u.name} width={30} height={40} />
+                            <span style={{ color: '#f0f0f0', fontWeight: u.id === currentUser?.id ? 'bold' : 'normal', fontSize: '13px' }}>
                             {u.name}
                           </span>
-                </div>
+                          </div>
+                        </div>
+                    ))}
+                  </div>
+              )}
             </div>
-        ))}
-    </div>
-)}
-</div>
-)}
-
-{isAdmin && (
-    <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-        <button
-            onClick={() => {
-                const btn = document.getElementById('admin-refresh-btn');
-                if (btn) btn.innerText = '⏳ Radar scannen...';
-                fetchAllData().then(() => {
-                    if (btn) btn.innerText = '📡 Forceer Radar Update';
-                });
-            }}
-            id="admin-refresh-btn"
-            style={{
-                padding: '10px 14px',
-                background: '#2c3e50',
-                color: '#28a745',
-                cursor: 'pointer',
-                border: '1px solid #28a745',
-                fontWeight: 'bold',
-                borderRadius: '4px',
-                letterSpacing: '1px',
-                boxShadow: '0 4px 10px rgba(0,0,0,0.8)'
-            }}
-        >
-            📡 Forceer Radar Update
-        </button>
-
-        {destination && (
-            <button
-                onClick={handleClearDestination}
-                style={{ padding: '8px 12px', background: '#8b0000', color: 'white', border: '1px solid #ff4d4d', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
-            >
-                🗑️ Wis Actieve Bestemming
-            </button>
         )}
-        <div style={{ background: '#141414', border: '1px solid #d4af37', padding: '10px 14px', borderRadius: '6px', color: '#fff', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
-            <label style={{ fontSize: '11px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '6px', letterSpacing: '1px' }}>
-                🎯 KAART KLIK MODUS
-            </label>
-            <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                    onClick={() => setAdminActionMode('mission')}
-                    style={{
+
+        {isAdmin && (
+            <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+              <button
+                  onClick={() => {
+                    const btn = document.getElementById('admin-refresh-btn');
+                    if (btn) btn.innerText = '⏳ Radar scannen...';
+                    fetchAllData().then(() => {
+                      if (btn) btn.innerText = '📡 Forceer Radar Update';
+                    });
+                  }}
+                  id="admin-refresh-btn"
+                  style={{
+                    padding: '10px 14px',
+                    background: '#2c3e50',
+                    color: '#28a745',
+                    cursor: 'pointer',
+                    border: '1px solid #28a745',
+                    fontWeight: 'bold',
+                    borderRadius: '4px',
+                    letterSpacing: '1px',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.8)'
+                  }}
+              >
+                📡 Forceer Radar Update
+              </button>
+
+              {destination && (
+                  <button
+                      onClick={handleClearDestination}
+                      style={{ padding: '8px 12px', background: '#8b0000', color: 'white', border: '1px solid #ff4d4d', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+                  >
+                    🗑️ Wis Actieve Bestemming
+                  </button>
+              )}
+              <div style={{ background: '#141414', border: '1px solid #d4af37', padding: '10px 14px', borderRadius: '6px', color: '#fff', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
+                <label style={{ fontSize: '11px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '6px', letterSpacing: '1px' }}>
+                  🎯 KAART KLIK MODUS
+                </label>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                      onClick={() => setAdminActionMode('mission')}
+                      style={{
                         flex: 1,
                         padding: '6px',
                         background: adminActionMode === 'mission' ? '#8b0000' : '#222',
@@ -1355,13 +1374,13 @@ select option { background: #1a1a1a; color: #d4af37; }
                         cursor: 'pointer',
                         fontSize: '11px',
                         fontWeight: 'bold'
-                    }}
-                >
+                      }}
+                  >
                     📍 Missie Plaatsen
-                </button>
-                <button
-                    onClick={() => setAdminActionMode('destination')}
-                    style={{
+                  </button>
+                  <button
+                      onClick={() => setAdminActionMode('destination')}
+                      style={{
                         flex: 1,
                         padding: '6px',
                         background: adminActionMode === 'destination' ? '#28a745' : '#222',
@@ -1371,213 +1390,245 @@ select option { background: #1a1a1a; color: #d4af37; }
                         cursor: 'pointer',
                         fontSize: '11px',
                         fontWeight: 'bold'
-                    }}
-                >
+                      }}
+                  >
                     🏁 Bestemming Plaatsen
-                </button>
-            </div>
-        </div>
+                  </button>
+                </div>
+              </div>
 
-        <div style={{ background: '#141414', border: '1px solid #d4af37', padding: '10px 14px', borderRadius: '6px', color: '#fff', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
-            <label style={{ fontSize: '11px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '4px', letterSpacing: '1px' }}>
-                📍 GPS ROUTE ANALYSEREN
-            </label>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <select
-                    value={selectedUserForTrail}
-                    onChange={(e) => fetchLocationLogs(e.target.value)}
-                    style={{ padding: '6px', background: '#222', color: '#d4af37', border: '1px solid #444', borderRadius: '4px', fontSize: '12px' }}
-                >
+              <div style={{ background: '#141414', border: '1px solid #d4af37', padding: '10px 14px', borderRadius: '6px', color: '#fff', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
+                <label style={{ fontSize: '11px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '4px', letterSpacing: '1px' }}>
+                  📍 GPS ROUTE ANALYSEREN
+                </label>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <select
+                      value={selectedUserForTrail}
+                      onChange={(e) => fetchLocationLogs(e.target.value)}
+                      style={{ padding: '6px', background: '#222', color: '#d4af37', border: '1px solid #444', borderRadius: '4px', fontSize: '12px' }}
+                  >
                     <option value="">-- Selecteer Macchina Route --</option>
                     {teams.map(t => (
                         <option key={t.id} value={t.id}>Capo {t.driver_name}'s Crew</option>
                     ))}
-                </select>
+                  </select>
 
-                {locationLogs.length > 0 && (
-                    <button
-                        onClick={() => { setLocationLogs([]); setSelectedUserForTrail(''); }}
-                        style={{ padding: '6px 10px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
-                    >
+                  {locationLogs.length > 0 && (
+                      <button
+                          onClick={() => { setLocationLogs([]); setSelectedUserForTrail(''); }}
+                          style={{ padding: '6px 10px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
+                      >
                         Wis Spoor
-                    </button>
-                )}
-            </div>
-        </div>
+                      </button>
+                  )}
+                </div>
+              </div>
 
-        <button onClick={() => setShowAdminRoster(!showAdminRoster)} style={{ padding: '10px 14px', background: '#8b0000', color: '#ffd700', cursor: 'pointer', border: '1px solid #ffd700', fontWeight: 'bold', borderRadius: '4px', letterSpacing: '1px', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
-            👑 Don's Hoofdkwartier (Famiglia Lijst)
-        </button>
+              <button onClick={() => setShowAdminRoster(!showAdminRoster)} style={{ padding: '10px 14px', background: '#8b0000', color: '#ffd700', cursor: 'pointer', border: '1px solid #ffd700', fontWeight: 'bold', borderRadius: '4px', letterSpacing: '1px', boxShadow: '0 4px 10px rgba(0,0,0,0.8)' }}>
+                👑 Don's Hoofdkwartier (Famiglia Lijst)
+              </button>
 
-        {showAdminRoster && (
-            <div style={{ background: '#141414', border: '1px solid #d4af37', color: '#eee', padding: '15px', borderRadius: '8px', maxHeight: '70vh', overflowY: 'auto', boxShadow: '0px 6px 15px rgba(0,0,0,0.9)' }}>
-                <h4 style={{ margin: '0 0 15px 0', color: '#ffd700', textTransform: 'uppercase', letterSpacing: '1px' }}>Alle Mafiosi</h4>
-                {users.map(u => (
-                    <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', gap: '15px', alignItems: 'center', borderBottom: '1px solid #282828', paddingBottom: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <OvalAvatar src={u.avatar_url} name={u.name} width={30} height={40} />
-                            <span style={{ color: '#f0f0f0', fontSize: '13px' }}>{u.name}</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                            <select value={u.team_id || ''} onChange={(e) => adminAssignUser(u.id, e.target.value || null)} style={{ padding: '4px', background: '#222', color: '#d4af37', border: '1px solid #444', fontSize: '12px' }}>
-                                <option value="">-- Niet toegewezen --</option>
-                                {teams.map(t => <option key={t.id} value={t.id}>Capo {t.driver_name}</option>)}
-                            </select>
-                            {u.device_id && (
-                                <button onClick={async () => { await supabase.from('users').update({ device_id: null }).eq('id', u.id); fetchAllData(); }} style={{ padding: '4px 8px', background: '#d4af37', color: 'black', border: 'none', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>
-                                    🔓 Ontgrendelen
-                                </button>
-                            )}
-                        </div>
+              {showAdminRoster && (
+                  <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.85)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '20px'
+                  }}>
+                    <div style={{
+                      background: '#161616',
+                      border: '2px solid #d4af37',
+                      color: '#eee',
+                      padding: '20px',
+                      borderRadius: '10px',
+                      width: '100%',
+                      maxWidth: '500px',
+                      maxHeight: '80vh',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.9)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>
+                        <h4 style={{ margin: 0, color: '#ffd700', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '15px' }}>👑 Don's Hoofdkwartier (Alle Mafiosi)</h4>
+                        <button onClick={() => setShowAdminRoster(false)} style={{ background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+                      </div>
+
+                      <div style={{ overflowY: 'auto', flex: 1, paddingRight: '5px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {users.map(u => (
+                            <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', alignItems: 'center', borderBottom: '1px solid #282828', paddingBottom: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <OvalAvatar src={u.avatar_url} name={u.name} width={34} height={44} />
+                                <span style={{ color: '#f0f0f0', fontSize: '14px', fontWeight: 'bold' }}>{u.name}</span>
+                              </div>
+                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                <select value={u.team_id || ''} onChange={(e) => adminAssignUser(u.id, e.target.value || null)} style={{ padding: '6px', background: '#222', color: '#d4af37', border: '1px solid #444', fontSize: '12px', borderRadius: '4px' }}>
+                                  <option value="">-- Geen team --</option>
+                                  {teams.map(t => <option key={t.id} value={t.id}>Capo {t.driver_name}</option>)}
+                                </select>
+                                {u.device_id && (
+                                    <button onClick={async () => { await supabase.from('users').update({ device_id: null }).eq('id', u.id); fetchAllData(); }} style={{ padding: '6px 10px', background: '#d4af37', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>
+                                      🔓 Ontgrendel
+                                    </button>
+                                )}
+                              </div>
+                            </div>
+                        ))}
+                      </div>
                     </div>
-                ))}
-            </div>
-        )}
-    </div>
-)}
-
-{draftMission && (
-    <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', background: '#161616', color: '#e0e0e0', border: '2px solid #8b0000', padding: '20px', borderRadius: '8px', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '320px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)' }}>
-        <h3 style={{ margin: 0, color: '#d4af37', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '15px', textAlign: 'center' }}>Locatie Missie Instellen</h3>
-        <p style={{ fontSize: '11px', color: '#aaa', margin: 0, textAlign: 'center' }}>Sleep de <b>oranje cirkel-marker</b> op de kaart om het nep-zoekgebied te verplaatsen.</p>
-
-        <div>
-            <label style={{ fontSize: '12px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Doel Foto (Locatie)</label>
-            <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setTargetImageFile(e.target.files ? e.target.files[0] : null)}
-                style={{ width: '100%', marginBottom: '12px', color: '#e0e0e0', fontSize: '12px' }}
-            />
-
-            <button onClick={handlePublishMission} disabled={!targetImageFile || isAdminUploading} style={{ width: '100%', padding: '10px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: targetImageFile ? 'pointer' : 'not-allowed', fontWeight: 'bold', textTransform: 'uppercase', opacity: targetImageFile ? 1 : 0.5 }}>
-                {isAdminUploading ? 'Bezig...' : '✅ Publiceer Missie'}
-            </button>
-        </div>
-
-        <button onClick={() => setDraftMission(null)} style={{ padding: '8px', background: '#333', color: '#aaa', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Annuleren</button>
-    </div>
-)}
-{isAdmin && editingMission && (
-    <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', minWidth: '280px' }}>
-        <div style={{ color: '#ffd700', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}>
-            🛠️ Zoekcentrum & Foto Bewerken<br/>
-            <span style={{ color: '#aaa', fontSize: '11px', fontWeight: 'normal' }}>Sleep de oranje marker of upload een nieuwe foto.</span>
-        </div>
-
-        {editingMission.image_url && (
-            <div style={{ textAlign: 'center' }}>
-                <img src={editingMission.image_url} alt="Huidig doel" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #d4af37' }} />
+                  </div>
+              )}
             </div>
         )}
 
-        <div>
-            <label style={{ fontSize: '11px', color: '#aaa', display: 'block', marginBottom: '4px' }}>Nieuwe Foto (Optioneel)</label>
-            <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setEditingMissionImageFile(e.target.files ? e.target.files[0] : null)}
-                style={{ width: '100%', color: '#e0e0e0', fontSize: '11px' }}
-            />
-        </div>
+        {draftMission && (
+            <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', background: '#161616', color: '#e0e0e0', border: '2px solid #8b0000', padding: '20px', borderRadius: '8px', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '320px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)' }}>
+              <h3 style={{ margin: 0, color: '#d4af37', letterSpacing: '1px', textTransform: 'uppercase', fontSize: '15px', textAlign: 'center' }}>Locatie Missie Instellen</h3>
+              <p style={{ fontSize: '11px', color: '#aaa', margin: 0, textAlign: 'center' }}>Sleep de <b>oranje cirkel-marker</b> op de kaart om het nep-zoekgebied te verplaatsen.</p>
 
-        <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-            <button onClick={async () => {
-                setIsAdminUploading(true);
-                let publicUrl = editingMission.image_url;
+              <div>
+                <label style={{ fontSize: '12px', color: '#ffd700', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Doel Foto (Locatie)</label>
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setTargetImageFile(e.target.files ? e.target.files[0] : null)}
+                    style={{ width: '100%', marginBottom: '12px', color: '#e0e0e0', fontSize: '12px' }}
+                />
 
-                if (editingMissionImageFile) {
+                <button onClick={handlePublishMission} disabled={!targetImageFile || isAdminUploading} style={{ width: '100%', padding: '10px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: targetImageFile ? 'pointer' : 'not-allowed', fontWeight: 'bold', textTransform: 'uppercase', opacity: targetImageFile ? 1 : 0.5 }}>
+                  {isAdminUploading ? 'Bezig...' : '✅ Publiceer Missie'}
+                </button>
+              </div>
+
+              <button onClick={() => setDraftMission(null)} style={{ padding: '8px', background: '#333', color: '#aaa', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Annuleren</button>
+            </div>
+        )}
+        {isAdmin && editingMission && (
+            <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', minWidth: '280px' }}>
+              <div style={{ color: '#ffd700', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}>
+                🛠️ Zoekcentrum & Foto Bewerken<br/>
+                <span style={{ color: '#aaa', fontSize: '11px', fontWeight: 'normal' }}>Sleep de oranje marker of upload een nieuwe foto.</span>
+              </div>
+
+              {editingMission.image_url && (
+                  <div style={{ textAlign: 'center' }}>
+                    <img src={editingMission.image_url} alt="Huidig doel" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #d4af37' }} />
+                  </div>
+              )}
+
+              <div>
+                <label style={{ fontSize: '11px', color: '#aaa', display: 'block', marginBottom: '4px' }}>Nieuwe Foto (Optioneel)</label>
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setEditingMissionImageFile(e.target.files ? e.target.files[0] : null)}
+                    style={{ width: '100%', color: '#e0e0e0', fontSize: '11px' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                <button onClick={async () => {
+                  setIsAdminUploading(true);
+                  let publicUrl = editingMission.image_url;
+
+                  if (editingMissionImageFile) {
                     const compressedFile = await compressImage(editingMissionImageFile, { maxSizeMB: 0.2, maxWidthOrHeight: 1200 });
                     const fileName = `target_${Math.random()}.${compressedFile.name.split('.').pop()}`;
                     const { error } = await supabase.storage.from('proofs').upload(fileName, compressedFile);
                     if (!error) {
-                        publicUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
+                      publicUrl = supabase.storage.from('proofs').getPublicUrl(fileName).data.publicUrl;
                     }
-                }
+                  }
 
-                await supabase.from('missions').update({
+                  await supabase.from('missions').update({
                     display_lat: editingMission.display_lat,
                     display_lng: editingMission.display_lng,
                     image_url: publicUrl
-                }).eq('id', editingMission.id);
+                  }).eq('id', editingMission.id);
 
-                setEditingMission(null);
-                setEditingMissionImageFile(null);
-                setIsAdminUploading(false);
-                fetchAllData();
-            }} disabled={isAdminUploading} style={{ flex: 1, padding: '8px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                {isAdminUploading ? 'Bezig...' : '✅ Opslaan'}
-            </button>
-            <button onClick={() => { setEditingMission(null); setEditingMissionImageFile(null); }} style={{ flex: 1, padding: '8px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                ❌ Annuleren
-            </button>
-        </div>
-    </div>
-)}
-{isAdmin && draftDestination && (
-    <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', minWidth: '280px' }}>
-        <div style={{ color: '#ffd700', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}>
-            🛠️ Checkpoint Conceptmodus
-        </div>
+                  setEditingMission(null);
+                  setEditingMissionImageFile(null);
+                  setIsAdminUploading(false);
+                  fetchAllData();
+                }} disabled={isAdminUploading} style={{ flex: 1, padding: '8px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  {isAdminUploading ? 'Bezig...' : '✅ Opslaan'}
+                </button>
+                <button onClick={() => { setEditingMission(null); setEditingMissionImageFile(null); }} style={{ flex: 1, padding: '8px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  ❌ Annuleren
+                </button>
+              </div>
+            </div>
+        )}
+        {isAdmin && draftDestination && (
+            <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', background: '#161616', border: '2px solid #d4af37', padding: '15px', borderRadius: '8px', zIndex: 2000, display: 'flex', flexDirection: 'column', gap: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.9)', minWidth: '280px' }}>
+              <div style={{ color: '#ffd700', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}>
+                🛠️ Checkpoint Conceptmodus
+              </div>
 
-        <div>
-            <label style={{ fontSize: '11px', color: '#aaa', display: 'block', marginBottom: '4px' }}>Bestemming Foto (Optioneel)</label>
-            <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setDestinationImageFile(e.target.files ? e.target.files[0] : null)}
-                style={{ width: '100%', color: '#e0e0e0', fontSize: '11px' }}
-            />
-        </div>
+              <div>
+                <label style={{ fontSize: '11px', color: '#aaa', display: 'block', marginBottom: '4px' }}>Bestemming Foto (Optioneel)</label>
+                <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setDestinationImageFile(e.target.files ? e.target.files[0] : null)}
+                    style={{ width: '100%', color: '#e0e0e0', fontSize: '11px' }}
+                />
+              </div>
 
-        <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-            <button onClick={handlePublishDestination} disabled={isAdminUploading} style={{ flex: 1, padding: '8px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                {isAdminUploading ? 'Bezig...' : '✅ Publiceer'}
-            </button>
-            <button onClick={() => setDraftDestination(null)} style={{ flex: 1, padding: '8px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                ❌ Annuleren
-            </button>
-        </div>
-    </div>
-)}
+              <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                <button onClick={handlePublishDestination} disabled={isAdminUploading} style={{ flex: 1, padding: '8px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  {isAdminUploading ? 'Bezig...' : '✅ Publiceer'}
+                </button>
+                <button onClick={() => setDraftDestination(null)} style={{ flex: 1, padding: '8px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                  ❌ Annuleren
+                </button>
+              </div>
+            </div>
+        )}
 
-{captureMission && (
-    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.92)', zIndex: 2000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        <h2 style={{ color: '#d4af37', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '5px' }}>
-            Locatie Bereikt
-        </h2>
-        <p style={{ color: '#aaa', fontStyle: 'italic', marginBottom: '20px', textAlign: 'center' }}>Maak een groepsfoto op deze locatie als bewijs voor de Don...</p>
-        <input type="file" accept="image/*" capture="user" onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProofFile(e.target.files ? e.target.files[0] : null)} style={{ margin: '15px 0', color: 'white' }} />
-        <div style={{ display: 'flex', gap: '15px' }}>
-            <button onClick={handlePlayerCapture} disabled={isPlayerUploading || !proofFile} style={{ padding: '12px 24px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer' }}>
-                {isPlayerUploading ? 'Bewijs Versturen...' : 'Bevestig Reddingsbewijs'}
-            </button>
-            <button onClick={() => { setCaptureMission(null); setProofFile(null); }} style={{ padding: '12px 24px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Annuleren</button>
-        </div>
-    </div>
-)}
+        {captureMission && (
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.92)', zIndex: 2000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+              <h2 style={{ color: '#d4af37', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '5px' }}>
+                Locatie Bereikt
+              </h2>
+              <p style={{ color: '#aaa', fontStyle: 'italic', marginBottom: '20px', textAlign: 'center' }}>Maak een groepsfoto op deze locatie als bewijs voor de Don...</p>
+              <input type="file" accept="image/*" capture="user" onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProofFile(e.target.files ? e.target.files[0] : null)} style={{ margin: '15px 0', color: 'white' }} />
+              <div style={{ display: 'flex', gap: '15px' }}>
+                <button onClick={handlePlayerCapture} disabled={isPlayerUploading || !proofFile} style={{ padding: '12px 24px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', fontWeight: 'bold', textTransform: 'uppercase', cursor: 'pointer' }}>
+                  {isPlayerUploading ? 'Bewijs Versturen...' : 'Bevestig Reddingsbewijs'}
+                </button>
+                <button onClick={() => { setCaptureMission(null); setProofFile(null); }} style={{ padding: '12px 24px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Annuleren</button>
+              </div>
+            </div>
+        )}
 
-{showUnlockModal && (
-    <div
-        onClick={handleDismissUnlockModal}
-        style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(5, 2, 2, 0.95)',
-            zIndex: 9999,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-            cursor: 'pointer',
-            animation: 'fadeIn 0.4s ease-out'
-        }}
-    >
-        <style>{`
+        {showUnlockModal && (
+            <div
+                onClick={handleDismissUnlockModal}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(5, 2, 2, 0.95)',
+                  zIndex: 9999,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '20px',
+                  cursor: 'pointer',
+                  animation: 'fadeIn 0.4s ease-out'
+                }}
+            >
+              <style>{`
               @keyframes pulseGlow {
                 0% { transform: scale(0.95); text-shadow: 0 0 10px rgba(255,0,0,0.8), 0 0 30px rgba(139,0,0,0.9); }
                 50% { transform: scale(1.05); text-shadow: 0 0 25px rgba(255,0,0,1), 0 0 50px rgba(255,26,26,1); }
@@ -1585,277 +1636,277 @@ select option { background: #1a1a1a; color: #d4af37; }
               }
             `}</style>
 
-        <div style={{
-            border: '2px solid #8b0000',
-            background: 'linear-gradient(180deg, #160000 0%, #0a0a0a 100%)',
-            borderRadius: '12px',
-            padding: '30px 24px',
-            maxWidth: '400px',
-            width: '100%',
-            textAlign: 'center',
-            boxShadow: '0 10px 40px rgba(139,0,0,0.8)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '16px'
-        }}>
+              <div style={{
+                border: '2px solid #8b0000',
+                background: 'linear-gradient(180deg, #160000 0%, #0a0a0a 100%)',
+                borderRadius: '12px',
+                padding: '30px 24px',
+                maxWidth: '400px',
+                width: '100%',
+                textAlign: 'center',
+                boxShadow: '0 10px 40px rgba(139,0,0,0.8)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px'
+              }}>
               <span style={{ fontSize: '12px', color: '#ffd700', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>
                 🇮🇹 Bericht van de Don
               </span>
-            <h2 style={{ margin: 0, color: '#ff4d4d', fontSize: '22px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Code Bemachtigd!
-            </h2>
-            <p style={{ fontSize: '12px', color: '#aaa', margin: 0, fontStyle: 'italic' }}>
-                Cari Maffiosi di Arsellini,<br/>
-                De Don heeft jullie bewijs goedgekeurd.
-            </p>
+                <h2 style={{ margin: 0, color: '#ff4d4d', fontSize: '22px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  Code Bemachtigd!
+                </h2>
+                <p style={{ fontSize: '12px', color: '#aaa', margin: 0, fontStyle: 'italic' }}>
+                  Cari Maffiosi di Arsellini,<br/>
+                  De Don heeft jullie bewijs goedgekeurd.
+                </p>
 
-            <div style={{
-                fontSize: '38px',
-                fontWeight: '900',
-                color: '#ff1a1a',
-                letterSpacing: '10px',
-                fontFamily: 'Courier New, monospace',
-                margin: '15px 0',
-                animation: 'pulseGlow 2s infinite ease-in-out'
-            }}>
-                {unlockedModalDigits}
+                <div style={{
+                  fontSize: '38px',
+                  fontWeight: '900',
+                  color: '#ff1a1a',
+                  letterSpacing: '10px',
+                  fontFamily: 'Courier New, monospace',
+                  margin: '15px 0',
+                  animation: 'pulseGlow 2s infinite ease-in-out'
+                }}>
+                  {unlockedModalDigits}
+                </div>
+
+                <button
+                    onClick={handleDismissUnlockModal}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: '#8b0000',
+                      color: 'white',
+                      border: '1px solid #ff4d4d',
+                      borderRadius: '6px',
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                      letterSpacing: '1px',
+                      cursor: 'pointer',
+                      fontSize: '13px'
+                    }}
+                >
+                  Tik om door te gaan ➔
+                </button>
+              </div>
             </div>
+        )}
 
-            <button
-                onClick={handleDismissUnlockModal}
-                style={{
-                    width: '100%',
-                    padding: '12px',
-                    background: '#8b0000',
-                    color: 'white',
-                    border: '1px solid #ff4d4d',
-                    borderRadius: '6px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                    cursor: 'pointer',
-                    fontSize: '13px'
-                }}
-            >
-                Tik om door te gaan ➔
-            </button>
-        </div>
-    </div>
-)}
+        <MapContainer center={mapCenter} zoom={14} style={{ height: '100%', width: '100%', zIndex: 1 }}>
+          <TileLayer
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+              attribution="Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
+              maxZoom={16}
+          />
+          <AdminMapEvents />
 
-<MapContainer center={mapCenter} zoom={14} style={{ height: '100%', width: '100%', zIndex: 1 }}>
-    <TileLayer
-        url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
-        attribution="Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ"
-        maxZoom={16}
-    />
-    <AdminMapEvents />
-
-    <DestinationEdgePointer destination={destination} draftDestination={draftDestination} isAdmin={isAdmin} hasUnlockedDestination={hasUnlockedDestination} />
-    {isAdmin && editingMission && (
-        <>
-            <Marker position={[editingMission.lat, editingMission.lng]} icon={createDestinationIcon()} zIndexOffset={500} opacity={0.7} />
-            <Marker
-                draggable={true}
-                eventHandlers={{
-                    drag: (e) => setEditingMission({ ...editingMission, display_lat: e.target.getLatLng().lat, display_lng: e.target.getLatLng().lng })
-                }}
-                position={[editingMission.display_lat, editingMission.display_lng]}
-                zIndexOffset={600}
-            >
-                <Popup>
+          <DestinationEdgePointer destination={destination} draftDestination={draftDestination} isAdmin={isAdmin} hasUnlockedDestination={hasUnlockedDestination} />
+          {isAdmin && editingMission && (
+              <>
+                <Marker position={[editingMission.lat, editingMission.lng]} icon={createDestinationIcon()} zIndexOffset={500} opacity={0.7} />
+                <Marker
+                    draggable={true}
+                    eventHandlers={{
+                      drag: (e) => setEditingMission({ ...editingMission, display_lat: e.target.getLatLng().lat, display_lng: e.target.getLatLng().lng })
+                    }}
+                    position={[editingMission.display_lat, editingMission.display_lng]}
+                    zIndexOffset={600}
+                >
+                  <Popup>
                     <div style={{ textAlign: 'center', minWidth: '120px' }}>
-                        <strong style={{ color: '#111', display: 'block' }}>🎯 Nieuw Nepcentrum</strong>
-                        <span style={{ fontSize: '11px', color: '#666' }}>Sleep om te verplaatsen</span>
+                      <strong style={{ color: '#111', display: 'block' }}>🎯 Nieuw Nepcentrum</strong>
+                      <span style={{ fontSize: '11px', color: '#666' }}>Sleep om te verplaatsen</span>
                     </div>
-                </Popup>
-            </Marker>
-            <SmoothCircle
-                center={[editingMission.display_lat, editingMission.display_lng]}
-                radius={MISSION_MAX_RADIUS_METERS}
-                pathOptions={{ fillColor: 'rgba(255, 165, 0, 0.2)', color: 'orange', weight: 2, dashArray: '5, 5' }}
-            />
-        </>
-    )}
-    {destination && !draftDestination && (
-        <>
-            {isAdmin || hasUnlockedDestination ? (
-                !isAdmin ? (
-                    (() => {
-                        const destRealLat = destination.real_lat ?? destination.lat;
-                        const destRealLng = destination.real_lng ?? destination.lng;
-                        const destFakeLat = destination.display_lat ?? destRealLat;
-                        const destFakeLng = destination.display_lng ?? destRealLng;
-                        const maxDestRadius = destination.radius_meters || MISSION_MAX_RADIUS_METERS;
+                  </Popup>
+                </Marker>
+                <SmoothCircle
+                    center={[editingMission.display_lat, editingMission.display_lng]}
+                    radius={MISSION_MAX_RADIUS_METERS}
+                    pathOptions={{ fillColor: 'rgba(255, 165, 0, 0.2)', color: 'orange', weight: 2, dashArray: '5, 5' }}
+                />
+              </>
+          )}
+          {destination && !draftDestination && (
+              <>
+                {isAdmin || hasUnlockedDestination ? (
+                    !isAdmin ? (
+                        (() => {
+                          const destRealLat = destination.real_lat ?? destination.lat;
+                          const destRealLng = destination.real_lng ?? destination.lng;
+                          const destFakeLat = destination.display_lat ?? destRealLat;
+                          const destFakeLng = destination.display_lng ?? destRealLng;
+                          const maxDestRadius = destination.radius_meters || MISSION_MAX_RADIUS_METERS;
 
-                        const { center, radius, distanceToReal } = getShrinkingCircleParams(
-                            destRealLat,
-                            destRealLng,
-                            destFakeLat,
-                            destFakeLng,
-                            maxDestRadius,
-                            playerLat,
-                            playerLng
-                        );
+                          const { center, radius, distanceToReal } = getShrinkingCircleParams(
+                              destRealLat,
+                              destRealLng,
+                              destFakeLat,
+                              destFakeLng,
+                              maxDestRadius,
+                              playerLat,
+                              playerLng
+                          );
 
-                        if (distanceToReal <= MISSION_REVEAL_THRESHOLD_METERS && !destination.is_revealed) {
+                          if (distanceToReal <= MISSION_REVEAL_THRESHOLD_METERS && !destination.is_revealed) {
                             supabase.from('destinations').update({ is_revealed: true }).eq('id', 'active').then(() => {
-                                fetchAllData();
+                              fetchAllData();
                             });
-                        }
+                          }
 
-                        if (destination.is_revealed || distanceToReal <= MISSION_REVEAL_THRESHOLD_METERS) {
+                          if (destination.is_revealed || distanceToReal <= MISSION_REVEAL_THRESHOLD_METERS) {
                             return (
                                 <Marker position={[destRealLat, destRealLng]} icon={createDestinationIcon(destination.image_url)} zIndexOffset={500}>
-                                    <Popup>
-                                        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '150px' }}>
-                                            <img
-                                                src={destination.image_url || '/destination.png'}
-                                                alt="Bestemming"
-                                                onClick={() => setExpandedImage(destination.image_url || '/destination.png')}
-                                                style={{ width: '100px', height: '100px', objectFit: 'cover', border: '2px solid #28a745', borderRadius: '8px', cursor: 'zoom-in', marginBottom: '8px' }}
-                                            />
-                                            <strong style={{ color: '#28a745', fontSize: '15px' }}>🏁 BESTEMMING</strong>
-                                            <p style={{ fontSize: '11px', color: '#aaa', margin: '4px 0 8px' }}>Rijd naar deze exacte locatie!</p>
-                                        </div>
-                                    </Popup>
+                                  <Popup>
+                                    <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '150px' }}>
+                                      <img
+                                          src={destination.image_url || '/destination.png'}
+                                          alt="Bestemming"
+                                          onClick={() => setExpandedImage(destination.image_url || '/destination.png')}
+                                          style={{ width: '100px', height: '100px', objectFit: 'cover', border: '2px solid #28a745', borderRadius: '8px', cursor: 'zoom-in', marginBottom: '8px' }}
+                                      />
+                                      <strong style={{ color: '#28a745', fontSize: '15px' }}>🏁 BESTEMMING</strong>
+                                      <p style={{ fontSize: '11px', color: '#aaa', margin: '4px 0 8px' }}>Rijd naar deze exacte locatie!</p>
+                                    </div>
+                                  </Popup>
                                 </Marker>
                             );
-                        }
+                          }
 
-                        return (
-                            <SmoothCircle
-                                center={center}
-                                radius={radius}
-                                pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.15)', color: '#28a745', weight: 2 }}
-                            >
+                          return (
+                              <SmoothCircle
+                                  center={center}
+                                  radius={radius}
+                                  pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.15)', color: '#28a745', weight: 2 }}
+                              >
                                 <Popup>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <strong style={{ color: '#28a745' }}>🏁 Bestemming Zoekgebied</strong>
-                                        <p style={{ fontSize: '11px', color: '#aaa' }}>Kom dichterbij ({Math.round(distanceToReal)}m) om de zone te vernauwen.</p>
-                                    </div>
+                                  <div style={{ textAlign: 'center' }}>
+                                    <strong style={{ color: '#28a745' }}>🏁 Bestemming Zoekgebied</strong>
+                                    <p style={{ fontSize: '11px', color: '#aaa' }}>Kom dichterbij ({Math.round(distanceToReal)}m) om de zone te vernauwen.</p>
+                                  </div>
                                 </Popup>
-                            </SmoothCircle>
-                        );
-                    })()
-                ) : (
-                    <>
-                        <Marker position={[destination.real_lat, destination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500}>
+                              </SmoothCircle>
+                          );
+                        })()
+                    ) : (
+                        <>
+                          <Marker position={[destination.real_lat, destination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500}>
                             <Popup>
-                                <div style={{ textAlign: 'center', minWidth: '150px' }}>
-                                    <strong style={{ color: '#28a745', fontSize: '15px' }}>🏁 ECHTE CHECKPOINT</strong>
-                                    <button onClick={handleClearDestination} style={{ width: '100%', marginTop: '4px', padding: '6px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                                        🗑️ Wis Bestemming
-                                    </button>
-                                </div>
+                              <div style={{ textAlign: 'center', minWidth: '150px' }}>
+                                <strong style={{ color: '#28a745', fontSize: '15px' }}>🏁 ECHTE CHECKPOINT</strong>
+                                <button onClick={handleClearDestination} style={{ width: '100%', marginTop: '4px', padding: '6px', background: '#8b0000', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                  🗑️ Wis Bestemming
+                                </button>
+                              </div>
                             </Popup>
-                        </Marker>
+                          </Marker>
 
-                        {!destination.is_revealed && (
-                            <>
+                          {!destination.is_revealed && (
+                              <>
                                 <Marker position={[destination.display_lat, destination.display_lng]} zIndexOffset={400}>
-                                    <Popup>
-                                        <div style={{ textAlign: 'center', minWidth: '140px' }}>
-                                            <strong style={{ color: '#111', display: 'block', marginBottom: '8px' }}>⚙️ Huidige Zoekzone</strong>
-                                            <button onClick={handleEditDestination} style={{ width: '100%', padding: '6px', background: '#d4af37', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                                                ✏️ Bewerk Zone
-                                            </button>
-                                            <span style={{ fontSize: '11px', color: '#666', fontWeight: 'bold', display: 'block', marginTop: '6px' }}>Straal: {Math.round(destination.radius_meters)}m</span>
-                                        </div>
-                                    </Popup>
+                                  <Popup>
+                                    <div style={{ textAlign: 'center', minWidth: '140px' }}>
+                                      <strong style={{ color: '#111', display: 'block', marginBottom: '8px' }}>⚙️ Huidige Zoekzone</strong>
+                                      <button onClick={handleEditDestination} style={{ width: '100%', padding: '6px', background: '#d4af37', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                        ✏️ Bewerk Zone
+                                      </button>
+                                      <span style={{ fontSize: '11px', color: '#666', fontWeight: 'bold', display: 'block', marginTop: '6px' }}>Straal: {Math.round(destination.radius_meters)}m</span>
+                                    </div>
+                                  </Popup>
                                 </Marker>
                                 <SmoothCircle center={[destination.display_lat, destination.display_lng]} radius={destination.radius_meters || 500} pathOptions={{ fillColor: 'rgba(0, 255, 255, 0.1)', color: '#28a745', weight: 2, dashArray: '5, 5' }} />
-                            </>
-                        )}
-                    </>
-                )
-            ) : null}
-        </>
-    )}
-    {isAdmin && draftMission && (
-        <>
-            <Marker position={[draftMission.real_lat, draftMission.real_lng]} icon={createDestinationIcon()} zIndexOffset={500} opacity={0.7} />
-            <Marker
-                draggable={true}
-                eventHandlers={{
-                    drag: (e) => setDraftMission({ ...draftMission, display_lat: e.target.getLatLng().lat, display_lng: e.target.getLatLng().lng })
-                }}
-                position={[draftMission.display_lat, draftMission.display_lng]}
-                zIndexOffset={600}
-            >
-                <Popup>
+                              </>
+                          )}
+                        </>
+                    )
+                ) : null}
+              </>
+          )}
+          {isAdmin && draftMission && (
+              <>
+                <Marker position={[draftMission.real_lat, draftMission.real_lng]} icon={createDestinationIcon()} zIndexOffset={500} opacity={0.7} />
+                <Marker
+                    draggable={true}
+                    eventHandlers={{
+                      drag: (e) => setDraftMission({ ...draftMission, display_lat: e.target.getLatLng().lat, display_lng: e.target.getLatLng().lng })
+                    }}
+                    position={[draftMission.display_lat, draftMission.display_lng]}
+                    zIndexOffset={600}
+                >
+                  <Popup>
                     <div style={{ textAlign: 'center', minWidth: '130px' }}>
-                        <strong style={{ color: '#111', display: 'block' }}>🎯 Nep Zoekcentrum</strong>
-                        <span style={{ fontSize: '11px', color: '#666' }}>Sleep hier om te verplaatsen waar spelers het zoeken</span>
+                      <strong style={{ color: '#111', display: 'block' }}>🎯 Nep Zoekcentrum</strong>
+                      <span style={{ fontSize: '11px', color: '#666' }}>Sleep hier om te verplaatsen waar spelers het zoeken</span>
                     </div>
-                </Popup>
-            </Marker>
-            <SmoothCircle
-                center={[draftMission.display_lat, draftMission.display_lng]}
-                radius={MISSION_MAX_RADIUS_METERS}
-                pathOptions={{ fillColor: 'rgba(255, 165, 0, 0.2)', color: 'orange', weight: 2, dashArray: '5, 5' }}
-            />
-        </>
-    )}
-    {isAdmin && draftDestination && (
-        <>
-            <Marker position={[draftDestination.real_lat, draftDestination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500} opacity={0.6} />
+                  </Popup>
+                </Marker>
+                <SmoothCircle
+                    center={[draftMission.display_lat, draftMission.display_lng]}
+                    radius={MISSION_MAX_RADIUS_METERS}
+                    pathOptions={{ fillColor: 'rgba(255, 165, 0, 0.2)', color: 'orange', weight: 2, dashArray: '5, 5' }}
+                />
+              </>
+          )}
+          {isAdmin && draftDestination && (
+              <>
+                <Marker position={[draftDestination.real_lat, draftDestination.real_lng]} icon={createDestinationIcon()} zIndexOffset={500} opacity={0.6} />
 
-            <Marker
-                draggable={true}
-                eventHandlers={{
-                    drag: (e) => setDraftDestination({ ...draftDestination, display_lat: e.target.getLatLng().lat, display_lng: e.target.getLatLng().lng })
-                }}
-                position={[draftDestination.display_lat, draftDestination.display_lng]}
-                zIndexOffset={400}
-            >
-                <Popup>
+                <Marker
+                    draggable={true}
+                    eventHandlers={{
+                      drag: (e) => setDraftDestination({ ...draftDestination, display_lat: e.target.getLatLng().lat, display_lng: e.target.getLatLng().lng })
+                    }}
+                    position={[draftDestination.display_lat, draftDestination.display_lng]}
+                    zIndexOffset={400}
+                >
+                  <Popup>
                     <div style={{ textAlign: 'center', minWidth: '120px' }}>
-                        <strong style={{ color: '#111', display: 'block' }}>🛠️ Midden</strong>
-                        <span style={{ fontSize: '11px', color: '#666' }}>Sleep om te verplaatsen</span>
+                      <strong style={{ color: '#111', display: 'block' }}>🛠️ Midden</strong>
+                      <span style={{ fontSize: '11px', color: '#666' }}>Sleep om te verplaatsen</span>
                     </div>
-                </Popup>
-            </Marker>
+                  </Popup>
+                </Marker>
 
-            <Marker
-                draggable={true}
-                eventHandlers={{
-                    drag: (e) => {
+                <Marker
+                    draggable={true}
+                    eventHandlers={{
+                      drag: (e) => {
                         const centerLatLng = L.latLng(draftDestination.display_lat, draftDestination.display_lng);
                         const newRadius = centerLatLng.distanceTo(e.target.getLatLng());
                         setDraftDestination({ ...draftDestination, radius_meters: Math.max(50, newRadius) });
-                    }
-                }}
-                position={calculateEdgePosition(draftDestination.display_lat, draftDestination.display_lng, draftDestination.radius_meters)}
-                zIndexOffset={401}
-            >
-                <Popup>
+                      }
+                    }}
+                    position={calculateEdgePosition(draftDestination.display_lat, draftDestination.display_lng, draftDestination.radius_meters)}
+                    zIndexOffset={401}
+                >
+                  <Popup>
                     <div style={{ textAlign: 'center', minWidth: '120px' }}>
-                        <strong style={{ color: '#111', display: 'block' }}>📏 Grootte</strong>
-                        <span style={{ fontSize: '11px', color: '#666' }}>Sleep om te schalen<br/>({Math.round(draftDestination.radius_meters)}m)</span>
+                      <strong style={{ color: '#111', display: 'block' }}>📏 Grootte</strong>
+                      <span style={{ fontSize: '11px', color: '#666' }}>Sleep om te schalen<br/>({Math.round(draftDestination.radius_meters)}m)</span>
                     </div>
-                </Popup>
-            </Marker>
+                  </Popup>
+                </Marker>
 
-            <SmoothCircle
-                center={[draftDestination.display_lat, draftDestination.display_lng]}
-                radius={draftDestination.radius_meters}
-                pathOptions={{ fillColor: 'rgba(255, 165, 0, 0.2)', color: 'orange', weight: 2, dashArray: '5, 5' }}
-            />
-        </>
-    )}
+                <SmoothCircle
+                    center={[draftDestination.display_lat, draftDestination.display_lng]}
+                    radius={draftDestination.radius_meters}
+                    pathOptions={{ fillColor: 'rgba(255, 165, 0, 0.2)', color: 'orange', weight: 2, dashArray: '5, 5' }}
+                />
+              </>
+          )}
 
-    {isAdmin && locationLogs.length > 0 && (() => {
-        const validLogs = locationLogs.filter(log => {
-            const lat = parseFloat(log.lat);
-            const lng = parseFloat(log.lng);
-            return !isNaN(lat) && !isNaN(lng);
-        });
+          {isAdmin && locationLogs.length > 0 && (() => {
+            const validLogs = locationLogs.filter(log => {
+              const lat = parseFloat(log.lat);
+              const lng = parseFloat(log.lng);
+              return !isNaN(lat) && !isNaN(lng);
+            });
 
-        return (
-            <>
-                {validLogs.map((log, index) => {
+            return (
+                <>
+                  {validLogs.map((log, index) => {
                     if (index === validLogs.length - 1) return null;
                     const nextLog = validLogs[index + 1];
 
@@ -1870,9 +1921,9 @@ select option { background: #1a1a1a; color: #d4af37; }
                             pathOptions={{ color: segmentColor, weight: 5, opacity: 0.9 }}
                         />
                     );
-                })}
+                  })}
 
-                {validLogs.map((log, index) => {
+                  {validLogs.map((log, index) => {
                     const lat = parseFloat(log.lat);
                     const lng = parseFloat(log.lng);
                     const dotColor = getSegmentColor(log.created_at);
@@ -1888,253 +1939,253 @@ select option { background: #1a1a1a; color: #d4af37; }
                             radius={5}
                             pathOptions={{ fillColor: dotColor, color: '#111', weight: 1.5, fillOpacity: 1 }}
                         >
-                            <Popup>
-                                <div style={{ fontSize: '11px', textAlign: 'center' }}>
-                                    <strong>Punt #{index + 1}</strong><br />
-                                    <span style={{ color: '#d4af37', fontWeight: 'bold' }}>👤 {uploaderName}</span><br />
-                                    {log.created_at ? new Date(log.created_at).toLocaleTimeString() : ''}<br />
-                                    <span style={{ color: '#aaa' }}>({ageMinutes}m geleden)</span>
-                                </div>
-                            </Popup>
+                          <Popup>
+                            <div style={{ fontSize: '11px', textAlign: 'center' }}>
+                              <strong>Punt #{index + 1}</strong><br />
+                              <span style={{ color: '#d4af37', fontWeight: 'bold' }}>👤 {uploaderName}</span><br />
+                              {log.created_at ? new Date(log.created_at).toLocaleTimeString() : ''}<br />
+                              <span style={{ color: '#aaa' }}>({ageMinutes}m geleden)</span>
+                            </div>
+                          </Popup>
                         </CircleMarker>
                     );
-                })}
-            </>
-        );
-    })()}
-
-    {teams.filter(t => t.lat && t.lng).map(team => (
-        <SmoothTeamMarker
-            key={team.id}
-            team={team}
-            currentTeamId={currentTeam?.id}
-            users={users}
-        />
-    ))}
-
-    {missions.filter(m => !m.team_id).map((baseMission) => {
-        const completions = missions.filter(m => m.team_id && m.lat === baseMission.lat && m.lng === baseMission.lng);
-        const myTeamCompletion = currentTeam ? completions.find(c => c.team_id === currentTeam.id) : null;
-        const reactKey = `mission-${baseMission.id}`;
-
-        if (isAdmin) {
-            const hasPendingReviews = completions.some(c => c.status === 'pending');
-            const markerColor = hasPendingReviews ? '#ffd700' : '#8b0000';
-            return (
-                <Marker key={reactKey} position={[baseMission.lat, baseMission.lng]} icon={createPortraitIcon(baseMission.image_url, markerColor)}>
-                    <Popup>
-                        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '220px' }}>
-                            {baseMission.image_url && (
-                                <img src={baseMission.image_url} alt="Locatie" onClick={() => setExpandedImage(baseMission.image_url)} style={{ width: '80px', height: '80px', objectFit: 'cover', border: `2px solid ${markerColor}`, borderRadius: '8px', cursor: 'zoom-in', marginBottom: '8px' }} />
-                            )}
-                            <strong style={{ fontSize: '15px', color: markerColor }}>{baseMission.title} {hasPendingReviews ? '(Actie Vereist)' : '(Admin)'}</strong>
-                            <div style={{ width: '100%', marginTop: '10px', background: '#1a1a1a', padding: '8px', borderRadius: '6px', border: '1px solid #333' }}>
-                                <strong style={{ fontSize: '12px', color: '#d4af37' }}>Team Inzendingen ({completions.length})</strong>
-                                {completions.map(c => {
-                                    const team = teams.find(t => t.id === c.team_id);
-                                    return (
-                                        <div key={c.id} style={{ borderTop: '1px solid #333', marginTop: '6px', paddingTop: '6px', textAlign: 'left' }}>
-                                            <span style={{ fontSize: '12px', color: team?.color || '#fff', fontWeight: 'bold' }}>Capo {team?.driver_name}</span>
-                                            <span style={{ fontSize: '11px', color: '#aaa', marginLeft: '6px' }}>({c.status})</span>
-                                            {c.proof_url && <img src={c.proof_url} alt="Bewijs" onClick={() => setExpandedImage(c.proof_url)} style={{ width: '100%', marginTop: '4px', borderRadius: '4px', cursor: 'zoom-in', border: `1px solid ${c.status === 'captured' ? '#28a745' : '#ffd700'}` }} />}
-                                            {c.status === 'pending' && (
-                                                <div style={{ display: 'flex', gap: '5px', marginTop: '6px' }}>
-                                                    <button onClick={() => handleApproveCapture(c.id)} style={{ flex: 1, background: '#28a745', color: 'white', border: 'none', padding: '4px', cursor: 'pointer', borderRadius: '3px', fontSize: '11px' }}>✅ Goedkeuren</button>
-                                                    <button onClick={() => handleRejectCapture(c.id)} style={{ flex: 1, background: '#8b0000', color: 'white', border: 'none', padding: '4px', cursor: 'pointer', borderRadius: '3px', fontSize: '11px' }}>❌ Afkeuren</button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <button
-                                onClick={() => setEditingMission({
-                                    ...baseMission,
-                                    display_lat: baseMission.display_lat ?? baseMission.lat,
-                                    display_lng: baseMission.display_lng ?? baseMission.lng
-                                })}
-                                style={{ width: '100%', marginTop: '8px', background: '#d4af37', color: 'black', border: 'none', padding: '6px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}
-                            >
-                                ✏️ Bewerk Nep Zoekcentrum
-                            </button>
-                            <button onClick={() => handleDeleteMission(baseMission.id, baseMission.lat, baseMission.lng)} style={{ width: '100%', marginTop: '10px', background: '#8b0000', color: 'white', border: 'none', padding: '6px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px' }}>🗑️ Wis Missie Voor Iedereen</button>
-                        </div>
-                    </Popup>
-                </Marker>
+                  })}
+                </>
             );
-        }
+          })()}
 
-        const realLat = baseMission.lat;
-        const realLng = baseMission.lng;
-        const fakeLat = baseMission.display_lat ?? realLat;
-        const fakeLng = baseMission.display_lng ?? realLng;
+          {teams.filter(t => t.lat && t.lng).map(team => (
+              <SmoothTeamMarker
+                  key={team.id}
+                  team={team}
+                  currentTeamId={currentTeam?.id}
+                  users={users}
+              />
+          ))}
 
-        const { center, radius, distanceToReal } = getShrinkingCircleParams(
-            realLat,
-            realLng,
-            fakeLat,
-            fakeLng,
-            MISSION_MAX_RADIUS_METERS,
-            playerLat,
-            playerLng
-        );
+          {missions.filter(m => !m.team_id).map((baseMission) => {
+            const completions = missions.filter(m => m.team_id && m.lat === baseMission.lat && m.lng === baseMission.lng);
+            const myTeamCompletion = currentTeam ? completions.find(c => c.team_id === currentTeam.id) : null;
+            const reactKey = `mission-${baseMission.id}`;
 
-        if (myTeamCompletion && myTeamCompletion.status === 'captured') {
-            return (
-                <Marker key={reactKey} position={[realLat, realLng]} icon={createCapturedCheckIcon(baseMission.image_url, currentTeam?.color || '#28a745')}>
+            if (isAdmin) {
+              const hasPendingReviews = completions.some(c => c.status === 'pending');
+              const markerColor = hasPendingReviews ? '#ffd700' : '#8b0000';
+              return (
+                  <Marker key={reactKey} position={[baseMission.lat, baseMission.lng]} icon={createPortraitIcon(baseMission.image_url, markerColor)}>
                     <Popup>
-                        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <strong style={{ color: '#28a745' }}>Missie Voltooid!</strong>
-                            <span style={{ fontSize: '11px', color: '#aaa', marginBottom: '8px' }}>Jouw crew heeft deze locatie bereikt.</span>
+                      <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '220px' }}>
+                        {baseMission.image_url && (
+                            <img src={baseMission.image_url} alt="Locatie" onClick={() => setExpandedImage(baseMission.image_url)} style={{ width: '80px', height: '80px', objectFit: 'cover', border: `2px solid ${markerColor}`, borderRadius: '8px', cursor: 'zoom-in', marginBottom: '8px' }} />
+                        )}
+                        <strong style={{ fontSize: '15px', color: markerColor }}>{baseMission.title} {hasPendingReviews ? '(Actie Vereist)' : '(Admin)'}</strong>
+                        <div style={{ width: '100%', marginTop: '10px', background: '#1a1a1a', padding: '8px', borderRadius: '6px', border: '1px solid #333' }}>
+                          <strong style={{ fontSize: '12px', color: '#d4af37' }}>Team Inzendingen ({completions.length})</strong>
+                          {completions.map(c => {
+                            const team = teams.find(t => t.id === c.team_id);
+                            return (
+                                <div key={c.id} style={{ borderTop: '1px solid #333', marginTop: '6px', paddingTop: '6px', textAlign: 'left' }}>
+                                  <span style={{ fontSize: '12px', color: team?.color || '#fff', fontWeight: 'bold' }}>Capo {team?.driver_name}</span>
+                                  <span style={{ fontSize: '11px', color: '#aaa', marginLeft: '6px' }}>({c.status})</span>
+                                  {c.proof_url && <img src={c.proof_url} alt="Bewijs" onClick={() => setExpandedImage(c.proof_url)} style={{ width: '100%', marginTop: '4px', borderRadius: '4px', cursor: 'zoom-in', border: `1px solid ${c.status === 'captured' ? '#28a745' : '#ffd700'}` }} />}
+                                  {c.status === 'pending' && (
+                                      <div style={{ display: 'flex', gap: '5px', marginTop: '6px' }}>
+                                        <button onClick={() => handleApproveCapture(c.id)} style={{ flex: 1, background: '#28a745', color: 'white', border: 'none', padding: '4px', cursor: 'pointer', borderRadius: '3px', fontSize: '11px' }}>✅ Goedkeuren</button>
+                                        <button onClick={() => handleRejectCapture(c.id)} style={{ flex: 1, background: '#8b0000', color: 'white', border: 'none', padding: '4px', cursor: 'pointer', borderRadius: '3px', fontSize: '11px' }}>❌ Afkeuren</button>
+                                      </div>
+                                  )}
+                                </div>
+                            );
+                          })}
                         </div>
+                        <button
+                            onClick={() => setEditingMission({
+                              ...baseMission,
+                              display_lat: baseMission.display_lat ?? baseMission.lat,
+                              display_lng: baseMission.display_lng ?? baseMission.lng
+                            })}
+                            style={{ width: '100%', marginTop: '8px', background: '#d4af37', color: 'black', border: 'none', padding: '6px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}
+                        >
+                          ✏️ Bewerk Nep Zoekcentrum
+                        </button>
+                        <button onClick={() => handleDeleteMission(baseMission.id, baseMission.lat, baseMission.lng)} style={{ width: '100%', marginTop: '10px', background: '#8b0000', color: 'white', border: 'none', padding: '6px', cursor: 'pointer', borderRadius: '4px', fontSize: '12px' }}>🗑️ Wis Missie Voor Iedereen</button>
+                      </div>
                     </Popup>
-                </Marker>
-            );
-        }
+                  </Marker>
+              );
+            }
 
-        if (myTeamCompletion && myTeamCompletion.status === 'pending') {
-            return (
-                <Marker key={reactKey} position={[realLat, realLng]} icon={createPortraitIcon(baseMission.image_url, '#ffd700')}>
+            const realLat = baseMission.lat;
+            const realLng = baseMission.lng;
+            const fakeLat = baseMission.display_lat ?? realLat;
+            const fakeLng = baseMission.display_lng ?? realLng;
+
+            const { center, radius, distanceToReal } = getShrinkingCircleParams(
+                realLat,
+                realLng,
+                fakeLat,
+                fakeLng,
+                MISSION_MAX_RADIUS_METERS,
+                playerLat,
+                playerLng
+            );
+
+            if (myTeamCompletion && myTeamCompletion.status === 'captured') {
+              return (
+                  <Marker key={reactKey} position={[realLat, realLng]} icon={createCapturedCheckIcon(baseMission.image_url, currentTeam?.color || '#28a745')}>
                     <Popup>
-                        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <strong style={{ color: '#ffd700' }}>Bewijs Verifiëren</strong>
-                            <p style={{ marginTop: '10px', fontStyle: 'italic', color: '#aaa', fontSize: '12px' }}>Jouw bewijs is geüpload. Wachten op de Don...</p>
-                        </div>
+                      <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <strong style={{ color: '#28a745' }}>Missie Voltooid!</strong>
+                        <span style={{ fontSize: '11px', color: '#aaa', marginBottom: '8px' }}>Jouw crew heeft deze locatie bereikt.</span>
+                      </div>
                     </Popup>
-                </Marker>
-            );
-        }
+                  </Marker>
+              );
+            }
 
-        if (distanceToReal <= MISSION_REVEAL_THRESHOLD_METERS) {
-            return (
-                <Marker key={reactKey} position={[realLat, realLng]} icon={createPortraitIcon(baseMission.image_url, '#8b0000')}>
+            if (myTeamCompletion && myTeamCompletion.status === 'pending') {
+              return (
+                  <Marker key={reactKey} position={[realLat, realLng]} icon={createPortraitIcon(baseMission.image_url, '#ffd700')}>
                     <Popup>
-                        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            {baseMission.image_url && (
-                                <img src={baseMission.image_url} alt="Locatie" onClick={() => setExpandedImage(baseMission.image_url)} style={{ width: '100px', height: '100px', objectFit: 'cover', border: '2px solid #8b0000', borderRadius: '8px', cursor: 'zoom-in', marginBottom: '8px' }} />
-                            )}
-                            <strong style={{ fontSize: '16px', color: '#ff4d4d' }}>{baseMission.title}</strong>
-                            <span style={{ fontSize: '11px', color: '#aaa', fontStyle: 'italic' }}>Tik op de foto om te vergroten</span>
-
-                            {currentTeam ? (
-                                <button onClick={() => setCaptureMission(baseMission)} style={{ width: '100%', marginTop: '10px', background: '#8b0000', color: 'white', border: '1px solid #ff4d4d', padding: '8px', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px', textTransform: 'uppercase' }}>Bewijs Uploaden</button>
-                            ) : (
-                                <span style={{ fontSize: '11px', color: '#888', fontStyle: 'italic', display: 'block', marginTop: '5px' }}>Sluit je aan bij een crew</span>
-                            )}
-                        </div>
+                      <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <strong style={{ color: '#ffd700' }}>Bewijs Verifiëren</strong>
+                        <p style={{ marginTop: '10px', fontStyle: 'italic', color: '#aaa', fontSize: '12px' }}>Jouw bewijs is geüpload. Wachten op de Don...</p>
+                      </div>
                     </Popup>
-                </Marker>
-            );
-        }
+                  </Marker>
+              );
+            }
 
-        return (
-            <SmoothCircle
-                key={reactKey}
-                center={center}
-                radius={radius}
-                pathOptions={{ fillColor: 'rgba(255, 0, 0, 0.2)', color: '#ff4d4d', weight: 2 }}
-            >
-                <Popup>
+            if (distanceToReal <= MISSION_REVEAL_THRESHOLD_METERS) {
+              return (
+                  <Marker key={reactKey} position={[realLat, realLng]} icon={createPortraitIcon(baseMission.image_url, '#8b0000')}>
+                    <Popup>
+                      <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        {baseMission.image_url && (
+                            <img src={baseMission.image_url} alt="Locatie" onClick={() => setExpandedImage(baseMission.image_url)} style={{ width: '100px', height: '100px', objectFit: 'cover', border: '2px solid #8b0000', borderRadius: '8px', cursor: 'zoom-in', marginBottom: '8px' }} />
+                        )}
+                        <strong style={{ fontSize: '16px', color: '#ff4d4d' }}>{baseMission.title}</strong>
+                        <span style={{ fontSize: '11px', color: '#aaa', fontStyle: 'italic' }}>Tik op de foto om te vergroten</span>
+
+                        {currentTeam ? (
+                            <button onClick={() => setCaptureMission(baseMission)} style={{ width: '100%', marginTop: '10px', background: '#8b0000', color: 'white', border: '1px solid #ff4d4d', padding: '8px', cursor: 'pointer', fontWeight: 'bold', borderRadius: '4px', textTransform: 'uppercase' }}>Bewijs Uploaden</button>
+                        ) : (
+                            <span style={{ fontSize: '11px', color: '#888', fontStyle: 'italic', display: 'block', marginTop: '5px' }}>Sluit je aan bij een crew</span>
+                        )}
+                      </div>
+                    </Popup>
+                  </Marker>
+              );
+            }
+
+            return (
+                <SmoothCircle
+                    key={reactKey}
+                    center={center}
+                    radius={radius}
+                    pathOptions={{ fillColor: 'rgba(255, 0, 0, 0.2)', color: '#ff4d4d', weight: 2 }}
+                >
+                  <Popup>
                     <div style={{ textAlign: 'center' }}>
-                        <strong style={{ color: '#ff4d4d' }}>❓ Zoekgebied</strong>
-                        <p style={{ fontSize: '11px', color: '#aaa' }}>Kom dichterbij ({Math.round(distanceToReal)}m) om de locatie te ontdekken.</p>
+                      <strong style={{ color: '#ff4d4d' }}>❓ Zoekgebied</strong>
+                      <p style={{ fontSize: '11px', color: '#aaa' }}>Kom dichterbij ({Math.round(distanceToReal)}m) om de locatie te ontdekken.</p>
                     </div>
-                </Popup>
-            </SmoothCircle>
-        );
-    })}
-</MapContainer>
+                  </Popup>
+                </SmoothCircle>
+            );
+          })}
+        </MapContainer>
 
-{isAdmin && teams && teams.length > 0 && (
-    <div style={{
-        position: 'absolute',
-        bottom: '30px',
-        left: '12px',
-        zIndex: 1000,
-        background: '#1a1a1a',
-        padding: '15px',
-        borderRadius: '8px',
-        border: '1px solid #333',
-        color: 'white',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.8)'
-    }}>
-        <h4 style={{ margin: '0 0 10px 0', color: '#d4af37' }}>Locatie Tracking</h4>
+        {isAdmin && teams && teams.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              bottom: '30px',
+              left: '12px',
+              zIndex: 1000,
+              background: '#1a1a1a',
+              padding: '15px',
+              borderRadius: '8px',
+              border: '1px solid #333',
+              color: 'white',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.8)'
+            }}>
+              <h4 style={{ margin: '0 0 10px 0', color: '#d4af37' }}>Locatie Tracking</h4>
 
-        {teams.map((team) => (
-            <div key={team.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '15px' }}>
+              {teams.map((team) => (
+                  <div key={team.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '15px' }}>
                   <span style={{ color: team.color || '#fff', fontWeight: 'bold' }}>
                     Capo {team.driver_name}
                   </span>
 
-                <button
-                    onClick={() => handleToggleTracking(team.id, team.is_tracking_active)}
-                    style={{
-                        background: team.is_tracking_active ? '#28a745' : '#444',
-                        color: 'white',
-                        border: 'none',
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: 'bold'
-                    }}
-                >
-                    {team.is_tracking_active ? '📍 AAN' : 'UIT'}
-                </button>
+                    <button
+                        onClick={() => handleToggleTracking(team.id, team.is_tracking_active)}
+                        style={{
+                          background: team.is_tracking_active ? '#28a745' : '#444',
+                          color: 'white',
+                          border: 'none',
+                          padding: '6px 12px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}
+                    >
+                      {team.is_tracking_active ? '📍 AAN' : 'UIT'}
+                    </button>
+                  </div>
+              ))}
             </div>
-        ))}
-    </div>
-)}
+        )}
 
-{showCodeGuessModal && (
-    <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(5, 2, 2, 0.95)',
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
-    }}>
-        <div style={{
-            border: guessError ? '2px solid #ff1a1a' : '2px solid #8b0000',
-            background: 'linear-gradient(180deg, #160000 0%, #0a0a0a 100%)',
-            borderRadius: '12px',
-            padding: '30px 24px',
-            maxWidth: '380px',
-            width: '100%',
-            textAlign: 'center',
-            boxShadow: '0 10px 40px rgba(139,0,0,0.8)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '16px',
-            animation: guessError ? 'shake 0.4s ease-in-out' : 'none'
-        }}>
-            <style>{`
+        {showCodeGuessModal && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(5, 2, 2, 0.95)',
+              zIndex: 9999,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px'
+            }}>
+              <div style={{
+                border: guessError ? '2px solid #ff1a1a' : '2px solid #8b0000',
+                background: 'linear-gradient(180deg, #160000 0%, #0a0a0a 100%)',
+                borderRadius: '12px',
+                padding: '30px 24px',
+                maxWidth: '380px',
+                width: '100%',
+                textAlign: 'center',
+                boxShadow: '0 10px 40px rgba(139,0,0,0.8)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px',
+                animation: guessError ? 'shake 0.4s ease-in-out' : 'none'
+              }}>
+                <style>{`
               @keyframes shake {
                 0%, 100% { transform: translateX(0); }
                 20%, 60% { transform: translateX(-8px); }
                 40%, 80% { transform: translateX(8px); }
               }
             `}</style>
-            <span style={{ fontSize: '12px', color: '#ffd700', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                <span style={{ fontSize: '12px', color: '#ffd700', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>
                 🇮🇹 Laatste Test van de Don
               </span>
-            <h3 style={{ margin: 0, color: '#ff4d4d', fontSize: '18px', textTransform: 'uppercase' }}>
-                Vorm de 4-cijferige Code
-            </h3>
-            <p style={{ fontSize: '11px', color: '#aaa', margin: 0, fontStyle: 'italic' }}>
-                Tik op de cijfers hieronder om ze in de juiste volgorde op de onderste rij te plaatsen.
-            </p>
+                <h3 style={{ margin: 0, color: '#ff4d4d', fontSize: '18px', textTransform: 'uppercase' }}>
+                  Vorm de 4-cijferige Code
+                </h3>
+                <p style={{ fontSize: '11px', color: '#aaa', margin: 0, fontStyle: 'italic' }}>
+                  Tik op de cijfers hieronder om ze in de juiste volgorde op de onderste rij te plaatsen.
+                </p>
 
-            <div style={{ display: 'flex', gap: '8px', margin: '5px 0' }}>
-                {sourceDigits.map((digit, index) => {
+                <div style={{ display: 'flex', gap: '8px', margin: '5px 0' }}>
+                  {sourceDigits.map((digit, index) => {
                     const isUsed = selectedIndices.includes(index);
                     return (
                         <button
@@ -2142,65 +2193,65 @@ select option { background: #1a1a1a; color: #d4af37; }
                             onClick={() => handleSelectDigit(index)}
                             disabled={isUsed}
                             style={{
-                                width: '48px',
-                                height: '56px',
-                                fontSize: '24px',
-                                background: isUsed ? '#1a1a1a' : '#111',
-                                border: `2px solid ${isUsed ? '#444' : '#d4af37'}`,
-                                borderRadius: '6px',
-                                color: isUsed ? '#555' : '#ffd700',
-                                fontWeight: 'bold',
-                                fontFamily: 'Courier New, monospace',
-                                cursor: isUsed ? 'not-allowed' : 'pointer',
-                                opacity: isUsed ? 0.4 : 1,
-                                transition: 'all 0.2s ease'
+                              width: '48px',
+                              height: '56px',
+                              fontSize: '24px',
+                              background: isUsed ? '#1a1a1a' : '#111',
+                              border: `2px solid ${isUsed ? '#444' : '#d4af37'}`,
+                              borderRadius: '6px',
+                              color: isUsed ? '#555' : '#ffd700',
+                              fontWeight: 'bold',
+                              fontFamily: 'Courier New, monospace',
+                              cursor: isUsed ? 'not-allowed' : 'pointer',
+                              opacity: isUsed ? 0.4 : 1,
+                              transition: 'all 0.2s ease'
                             }}
                         >
-                            {digit}
+                          {digit}
                         </button>
                     );
-                })}
-            </div>
+                  })}
+                </div>
 
-            <div style={{ display: 'flex', gap: '8px', margin: '10px 0' }}>
-                {[0, 1, 2, 3].map((slotIndex) => {
+                <div style={{ display: 'flex', gap: '8px', margin: '10px 0' }}>
+                  {[0, 1, 2, 3].map((slotIndex) => {
                     const sourceIndex = selectedIndices[slotIndex];
                     const digit = sourceIndex !== undefined ? sourceDigits[sourceIndex] : '';
                     return (
                         <div
                             key={slotIndex}
                             onClick={() => {
-                                if (sourceIndex !== undefined) handleRemoveDigit(slotIndex);
+                              if (sourceIndex !== undefined) handleRemoveDigit(slotIndex);
                             }}
                             style={{
-                                width: '48px',
-                                height: '56px',
-                                fontSize: '24px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                background: '#0a0a0a',
-                                border: `2px solid ${digit ? '#ff1a1a' : '#444'}`,
-                                borderRadius: '6px',
-                                color: '#ff1a1a',
-                                fontWeight: 'bold',
-                                fontFamily: 'Courier New, monospace',
-                                cursor: digit ? 'pointer' : 'default',
-                                boxShadow: digit ? '0 0 8px rgba(255,0,0,0.3)' : 'none'
+                              width: '48px',
+                              height: '56px',
+                              fontSize: '24px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#0a0a0a',
+                              border: `2px solid ${digit ? '#ff1a1a' : '#444'}`,
+                              borderRadius: '6px',
+                              color: '#ff1a1a',
+                              fontWeight: 'bold',
+                              fontFamily: 'Courier New, monospace',
+                              cursor: digit ? 'pointer' : 'default',
+                              boxShadow: digit ? '0 0 8px rgba(255,0,0,0.3)' : 'none'
                             }}
                             title={digit ? 'Klik om terug te zetten' : ''}
                         >
-                            {digit || '_'}
+                          {digit || '_'}
                         </div>
                     );
-                })}
-            </div>
+                  })}
+                </div>
 
-            <div style={{ display: 'flex', gap: '10px', width: '100%', marginTop: '5px' }}>
-                <button
-                    onClick={handleVerifyCode}
-                    disabled={selectedIndices.length < 4}
-                    style={{
+                <div style={{ display: 'flex', gap: '10px', width: '100%', marginTop: '5px' }}>
+                  <button
+                      onClick={handleVerifyCode}
+                      disabled={selectedIndices.length < 4}
+                      style={{
                         flex: 1,
                         padding: '12px',
                         background: selectedIndices.length === 4 ? '#28a745' : '#444',
@@ -2211,16 +2262,16 @@ select option { background: #1a1a1a; color: #d4af37; }
                         textTransform: 'uppercase',
                         cursor: selectedIndices.length === 4 ? 'pointer' : 'not-allowed',
                         opacity: selectedIndices.length === 4 ? 1 : 0.6
-                    }}
-                >
+                      }}
+                  >
                     Bevestig Code
-                </button>
-                <button
-                    onClick={() => {
+                  </button>
+                  <button
+                      onClick={() => {
                         setShowCodeGuessModal(false);
                         setSelectedIndices([]);
-                    }}
-                    style={{
+                      }}
+                      style={{
                         padding: '12px 16px',
                         background: '#8b0000',
                         color: 'white',
@@ -2228,27 +2279,27 @@ select option { background: #1a1a1a; color: #d4af37; }
                         borderRadius: '6px',
                         fontWeight: 'bold',
                         cursor: 'pointer'
-                    }}
-                >
+                      }}
+                  >
                     Sluiten
-                </button>
+                  </button>
+                </div>
+              </div>
             </div>
-        </div>
-    </div>
-)}
+        )}
 
-{expandedImage && (
-    <div
-        onClick={() => setExpandedImage(null)}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', cursor: 'zoom-out' }}
-    >
-        <img
-            src={expandedImage}
-            alt="Vergroot"
-            style={{ maxWidth: '100%', maxHeight: '100%', border: '2px solid #d4af37', borderRadius: '8px', objectFit: 'contain' }}
-        />
-    </div>
-)}
-</div>
-);
+        {expandedImage && (
+            <div
+                onClick={() => setExpandedImage(null)}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', cursor: 'zoom-out' }}
+            >
+              <img
+                  src={expandedImage}
+                  alt="Vergroot"
+                  style={{ maxWidth: '100%', maxHeight: '100%', border: '2px solid #d4af37', borderRadius: '8px', objectFit: 'contain' }}
+              />
+            </div>
+        )}
+      </div>
+  );
 }
